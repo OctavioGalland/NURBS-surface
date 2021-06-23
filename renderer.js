@@ -9,6 +9,7 @@ class Renderer {
 	controlPoints = [];
 
 	showControlPoints = true;
+	showLightPosition = true;
 
 	vertexShaderSrc = `
     uniform mat4 projection;
@@ -31,6 +32,7 @@ class Renderer {
   fragmentShaderSrc = `
     precision lowp float;
 
+		uniform int usePlainColor;
     uniform vec3 color;
     uniform vec3 lightPos;
     uniform vec3 viewPos;
@@ -39,23 +41,27 @@ class Renderer {
     varying vec3 worldPos;
 
     void main() {
-			vec3 lightDir = normalize(lightPos - worldPos);
-			vec3 viewDir = normalize(viewPos - worldPos);
-			vec3 reflectDir = reflect(-lightDir, normal);
-			float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.);
-			vec3 specular = vec3(1, 1, 1) * spec;
+			if (usePlainColor == 1) {
+				gl_FragColor = vec4(color, 1);
+			} else {
+				vec3 lightDir = normalize(lightPos - worldPos);
+				vec3 viewDir = normalize(viewPos - worldPos);
+				vec3 reflectDir = reflect(-lightDir, normal);
+				float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.);
+				vec3 specular = vec3(1, 1, 1) * spec;
 
-			float angle = max(dot(normal, lightDir), 0.0);
-			vec3 diffuse = color * angle;
+				float angle = max(dot(normal, lightDir), 0.0);
+				vec3 diffuse = color * angle;
 
-			vec3 ambient = color * 0.2;
-      gl_FragColor = vec4(specular + diffuse + ambient, 1);
+				vec3 ambient = color * 0.2;
+      	gl_FragColor = vec4(specular + diffuse + ambient, 1);
+			}
     }
   `;
 
   locations = {
     attrib: {pos: -1, norm: -1},
-    uniform: {projection: -1, view: -1, model: -1, color: -1, lightPos: -1, viewPos: -1}
+    uniform: {projection: -1, view: -1, model: -1, color: -1, lightPos: -1, viewPos: -1, usePlainColor: -1}
   };
 
   constructor () {
@@ -89,7 +95,10 @@ class Renderer {
     gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos);
 
     this.locations.uniform.lightPos = gl.getUniformLocation(this.program, 'lightPos');
-    gl.uniform3fv(this.locations.uniform.lightPos, [1, 10, -1]);
+		this.lightPos = [1, 1, -1];
+    gl.uniform3fv(this.locations.uniform.lightPos, this.lightPos);
+
+    this.locations.uniform.usePlainColor = gl.getUniformLocation(this.program, 'usePlainColor');
 
     gl.enable(gl.DEPTH_TEST);
 
@@ -162,18 +171,32 @@ class Renderer {
   }
 
   render () {
-    const redColor = [1, 0, 0], blueColor = [0, 0, 1];
-    gl.clearColor(1, 1, 1, 1);
+    const redColor = [1, 0, 0], blueColor = [0, 0, 1], whiteColor = [1, 1, 1];
+    gl.clearColor(0.9, 0.85, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+		// Estado generico para renderizar cubos
+		gl.useProgram(this.program);
+		gl.enable(gl.CULL_FACE);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
+    gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
+    gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
+    gl.enableVertexAttribArray(this.locations.attrib.pos);
+    gl.enableVertexAttribArray(this.locations.attrib.norm);
+
+		// Renderizamos la luz sin usar shading
+		if (this.showLightPosition) {
+    	gl.uniform3fv(this.locations.uniform.color, whiteColor);
+			gl.uniform1i(this.locations.uniform.usePlainColor, 1);
+			let modelMat = createTranslationMatrix(this.lightPos[0], this.lightPos[1], this.lightPos[2]);
+			modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
+			gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
+			gl.drawArrays(gl.TRIANGLES, 0, 36);
+		}
+
+		// De aca en mas tenemos en cuenta la iluminacion
+		gl.uniform1i(this.locations.uniform.usePlainColor, 0);
 		if (this.showControlPoints) {
-			gl.enable(gl.CULL_FACE);
-    	gl.useProgram(this.program);
-    	gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
-    	gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
-    	gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
-    	gl.enableVertexAttribArray(this.locations.attrib.pos);
-    	gl.enableVertexAttribArray(this.locations.attrib.norm);
     	gl.uniform3fv(this.locations.uniform.color, redColor);
 			for (let i = 0; i < this.controlPoints.length; i++) {
 				for (let j = 0; j < this.controlPoints[i].length; j++) {
@@ -228,6 +251,12 @@ class Renderer {
 		} else {
 			return this.NURBS_N(i, n - 1, t) * (t - i) / n + this.NURBS_N(i + 1, n - 1, t) * (i + n + 1 - t) / n;
 		}
+	}
+
+	updateLightPos (pos) {
+		this.lightPos = pos;
+    gl.uniform3fv(this.locations.uniform.lightPos, this.lightPos);
+		this.render();
 	}
 
 	updateControlPonts (points) {

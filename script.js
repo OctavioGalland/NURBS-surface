@@ -58,9 +58,15 @@ $(document).ready(() => {
 		renderer.render();
 	});
 
+	$('#inputShowLP').click(() => {
+		renderer.showLightPosition = $('#inputShowLP').prop('checked');
+		renderer.render();
+	});
+
 	$('#inputUseSliders').click(() => {
 		useSliders = $('#inputUseSliders').prop('checked');
 		renderControlPointsPanel(renderer.controlPoints);
+		renderLightPos();
 	});
 
 	window.readControlPoints = () => {
@@ -99,6 +105,26 @@ $(document).ready(() => {
 		$('#controlPointsPanel').html(newContent);
 	}
 
+	window.updateLightPos = function() {
+		renderer.updateLightPos([$('#light-x').val(), $('#light-y').val(), $('#light-z').val()]);
+	}
+
+	function renderLightPos() {
+		let content = '';
+		if (useSliders) {
+			content = `(
+				<input onchange="updateLightPos()" id="light-x" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[0]}">,
+				<input onchange="updateLightPos()" id="light-y" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[1]}">,
+				<input onchange="updateLightPos()" id="light-z" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[2]}">)`;
+		} else {
+			content = `(
+				<input onchange="updateLightPos()" id="light-x" type="number" step="0.1" value="${renderer.lightPos[0]}">,
+				<input onchange="updateLightPos()" id="light-y" type="number" step="0.1" value="${renderer.lightPos[1]}">,
+				<input onchange="updateLightPos()" id="light-z" type="number" step="0.1" value="${renderer.lightPos[2]}">)`;
+		}
+		$('#inputLightPos').html(content);
+	}
+
 	function generateControlPoints () {
 		let controlPoints = [];
 		let n = $('#inputCPx')['0'].value;
@@ -118,4 +144,5 @@ $(document).ready(() => {
 	$('#inputCPx').change(generateControlPoints);
 	$('#inputCPy').change(generateControlPoints);
 	generateControlPoints();
+	renderLightPos();
 })

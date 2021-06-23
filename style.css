@@ -25,10 +25,10 @@ input[type="number"] {
 	width: 50px;
 }
 
-#controlPointsPanel input[type="range"] {
+input[type="range"] {
 	width: 110px;
 }
 
-#controlPointsPanel input[type="number"] {
+#controlPointsPanel input[type="number"], span input[type="number"] {
 	width: 110px;
 }
