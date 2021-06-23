@@ -89,7 +89,7 @@ class Renderer {
     gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos);
 
     this.locations.uniform.lightPos = gl.getUniformLocation(this.program, 'lightPos');
-    gl.uniform3fv(this.locations.uniform.lightPos, [0, 3, 0]);
+    gl.uniform3fv(this.locations.uniform.lightPos, [1, 10, -1]);
 
     gl.enable(gl.DEPTH_TEST);
 
@@ -244,13 +244,18 @@ class Renderer {
 				// Divisor para normalizar el peso
 				let normFactor = 0;
 				let nurbsCoef = new Array(points.length);
+				let sum = 0;
 				for (let k = 0; k < points.length; k++) {
 					nurbsCoef[k] = new Array(points[0].length);
 					for (let l = 0; l < points[0].length; l++) {
 						const nu = this.NURBS_N(k, this.bSplineN - 1, u), nv = this.NURBS_N(l, this.bSplineM - 1, v);
 						nurbsCoef[k][l] = nu * nv;
+						sum += nu * nv;
 						normFactor += nurbsCoef[k][l] * points[k][l].weight;
 					}
+				}
+				if (Math.abs(sum - 1) > 0.0001) {
+					console.warn(`${sum} should be 1 at (u, v) = (${u},${v})`);
 				}
 				// Calcular la posicion del punto (u,v) en base a los puntos de control
 				let pos = [0, 0, 0];
