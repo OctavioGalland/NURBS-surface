@@ -34,19 +34,19 @@ $(document).ready(() => {
 	});
 
 	$('#inputSteps').change(() => {
-		renderer.steps = $('#inputSteps').val();
+		renderer.steps = parseInt($('#inputSteps').val());
 		renderer.updateControlPonts(renderer.controlPoints);
 		renderer.render();
 	});
 
 	$('#inputBSn').change(() => {
-		renderer.bSplineN = $('#inputBSn').val();
+		renderer.bSplineN = parseInt($('#inputBSn').val());
 		renderer.updateControlPonts(renderer.controlPoints);
 		renderer.render();
 	});
 
 	$('#inputBSm').change(() => {
-		renderer.bSplineM = $('#inputBSm').val();
+		renderer.bSplineM = parseInt($('#inputBSm').val());
 		renderer.updateControlPonts(renderer.controlPoints);
 		renderer.render();
 	});
