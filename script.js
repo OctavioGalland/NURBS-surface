@@ -51,8 +51,8 @@ $(document).ready(() => {
 		renderer.render();
 	});
 
-	$('#inputShowCP').change(() => {
-		renderer.showControlPoints = $('#inputShowCP').is('checked');
+	$('#inputShowCP').click(() => {
+		renderer.showControlPoints = $('#inputShowCP').prop('checked');
 		renderer.render();
 	});
 
