@@ -1,0 +1,371 @@
+'use strict'
+
+$(document).ready(() => {
+	const canvas = document.getElementById('canvas');
+	const gl = canvas.getContext('webgl');
+
+	class Renderer {
+	  angleX = 0;
+	  angleY = 0;
+	  zoomLevel = 1;
+
+		bSplineN = 2;
+		bSplineM = 2;
+		steps = 3;
+		controlPoints = [];
+
+		vertexShaderSrc = `
+	    uniform mat4 projection;
+	    uniform mat4 view;
+	    uniform mat4 model;
+	    uniform vec3 lightPos;
+	    uniform vec3 color;
+	
+	    attribute vec3 pos;
+	    attribute vec3 norm;
+	
+	    varying vec3 vColor;
+	
+	    void main() {
+				vec3 worldPos = (model * vec4(pos, 1)).xyz;
+	      vec3 lightDir = normalize(lightPos - worldPos);
+	      float angle = max(dot(lightDir, norm), 0.2);
+	      vColor = color * angle;
+	      gl_Position = projection * view * model * vec4(pos, 1);
+	    }
+	  `;
+	
+	  fragmentShaderSrc = `
+	    precision lowp float;
+	    varying vec3 vColor;
+	    void main() {
+	      gl_FragColor = vec4(vColor, 1);
+	    }
+	  `;
+	
+	  locations = {
+	    attrib: {pos: -1, norm: -1},
+	    uniform: {projection: -1, view: -1, model: -1, color: -1, lightPos: -1}
+	  };
+	
+	  constructor () {
+	    this.cubeMeshBuffer = gl.createBuffer();
+	    gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
+	    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeMesh), gl.STATIC_DRAW);
+	
+	    this.program = this.createProgram(this.vertexShaderSrc, this.fragmentShaderSrc);
+	    gl.useProgram(this.program);
+	    this.locations.attrib.pos = gl.getAttribLocation(this.program, 'pos');
+	    gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
+	
+	    this.locations.attrib.norm = gl.getAttribLocation(this.program, 'norm');
+	    gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
+	
+	    this.locations.uniform.model = gl.getUniformLocation(this.program, 'model');
+	
+	    this.locations.uniform.view = gl.getUniformLocation(this.program, 'view');
+	    this.viewMatrix = createTranslationMatrix(0, 0, -3);
+	    gl.uniformMatrix4fv(this.locations.uniform.view, false, this.viewMatrix);
+	
+	    this.locations.uniform.projection = gl.getUniformLocation(this.program, 'projection');
+	    const projectionMatrix = createPerspectiveMatrix(90, 4/3, 0.001, 10000);
+	    gl.uniformMatrix4fv(this.locations.uniform.projection, false, projectionMatrix);
+	
+	    this.locations.uniform.color = gl.getUniformLocation(this.program, 'color');
+	    gl.uniform3fv(this.locations.uniform.color, [0, 0, 1]);
+	
+	    this.locations.uniform.lightPos = gl.getUniformLocation(this.program, 'lightPos');
+	    gl.uniform3fv(this.locations.uniform.lightPos, [0, 3, 0]);
+	
+	    gl.enable(gl.DEPTH_TEST);
+	
+	    this.surfaceMeshBuffer = gl.createBuffer();
+	  }
+	
+	  createProgram (vshad, fshad) {
+	    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+	    gl.shaderSource(vertexShader, vshad);
+	    gl.compileShader(vertexShader);
+	    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+	      const info = gl.getShaderInfoLog(vertexShader);
+	      console.error(`Could not compile vertex shader: ${info}\n`);
+	      return -1;
+	    }
+	
+	    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+	    gl.shaderSource(fragmentShader, fshad);
+	    gl.compileShader(fragmentShader);
+	    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+	      const info = gl.getShaderInfoLog(fragmentShader);
+	      console.error(`Could not compile fragment shader: ${info}\n`);
+	      return -1;
+	    }
+	
+	    const program = gl.createProgram();
+	    gl.attachShader(program, vertexShader);
+	    gl.attachShader(program, fragmentShader);
+	    gl.linkProgram(program);
+	    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+	      const info = gl.getProgramInfoLog(program);
+	      console.error(`Could not link program: ${info}\n`);
+	      return -1;
+	    }
+	
+	    return program;
+	  }
+	
+	  reCreateViewMatrix () {
+	    this.viewMatrix = multMatrix(createTranslationMatrix(0, 0, -3), createRotationMatrix(this.angleY, 1, 0, 0));
+	    this.viewMatrix = multMatrix(this.viewMatrix, createRotationMatrix(this.angleX, 0, 1, 0));
+	    this.viewMatrix = multMatrix(this.viewMatrix, createScalingMatrix(this.zoomLevel, this.zoomLevel, this.zoomLevel));
+	    gl.useProgram(this.program);
+	    gl.uniformMatrix4fv(this.locations.uniform.view, false, this.viewMatrix);
+	  }
+	
+	  rotate (dx, dy) {
+	    this.angleX += dx;
+	    this.angleY += dy;
+	    this.angleX = this.angleX % 360;
+	    this.angleY = Math.max(-90, Math.min(90, this.angleY));
+	
+	    this.reCreateViewMatrix();
+	    this.render();
+	  }
+	
+	  zoom (s) {
+	    this.zoomLevel += s;
+	    this.reCreateViewMatrix();
+	    this.render();
+	  }
+	
+	  render () {
+	    const redColor = [1, 0, 0], blueColor = [0, 0, 1];
+	    gl.clearColor(1, 1, 1, 1);
+	    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	
+	    gl.enable(gl.CULL_FACE);
+	    gl.useProgram(this.program);
+	    gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
+	    gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
+	    gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
+	    gl.enableVertexAttribArray(this.locations.attrib.pos);
+	    gl.enableVertexAttribArray(this.locations.attrib.norm);
+	    gl.uniform3fv(this.locations.uniform.color, redColor);
+			for (let i = 0; i < this.controlPoints.length; i++) {
+				for (let j = 0; j < this.controlPoints[i].length; j++) {
+					let modelMat = createTranslationMatrix(this.controlPoints[i][j].pos[0], this.controlPoints[i][j].pos[1], this.controlPoints[i][j].pos[2]);
+					modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
+					gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
+					gl.drawArrays(gl.TRIANGLES, 0, 36);
+				}
+			}
+	
+			if (this.controlPoints.length > 0) {
+				gl.disable(gl.CULL_FACE);
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
+	    	gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
+	    	gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
+	    	gl.enableVertexAttribArray(this.locations.attrib.pos);
+	    	gl.enableVertexAttribArray(this.locations.attrib.norm);
+	    	gl.uniform3fv(this.locations.uniform.color, blueColor);
+				gl.uniformMatrix4fv(this.locations.uniform.model, false, createIdentityMatrix());
+				gl.drawArrays(gl.TRIANGLES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3);
+			}
+	  }
+	
+		NURBS_N(i, n, t) {
+			// Version n = 3 hardcodeada
+			if (i <= t && t < i + 1) {
+				let u = t - i;
+				return Math.pow(u, 2) / 2;
+			} else if (i + 1 <= t && t < i + 2) {
+				let u = t - (i + 1);
+				return -Math.pow(u, 2)  + u + 1/2;
+			} else if (i + 2 <= t && t < i + 3) {
+				let u = t -  (i + 2);
+				return Math.pow(1 - u, 2) / 2;
+			} else {
+				return 0;
+			}
+
+			// Version n = 2 hardcodeada
+			//if (i <= t && t <= i + 1) {
+			//	return t - i;
+			//} else if (i + 1 <= t && t <= i + 2) {
+			//	return 2 - t + i;
+			//} else {
+			//	return 0;
+			//}
+	
+			// Version recursiva generica
+			//if (n === 1) {
+			//	return (i <= t && t <= i + 1) ? 1 : 0;
+			//} else {
+			//	return this.NURBS_N(i, n - 1, t) * (t - i) / (n - 1) + (1 - (t - (i + 1)) / (n  - 1)) * this.NURBS_N(i + 1, n - 1, t);
+			//}
+		}
+	
+		updateControlPonts (points) {
+			this.controlPoints = points;
+			let sample = [];
+			// Samplear (steps * steps) puntos en la superficie
+			for (let i = 0; i < this.steps; i++) {
+				for (let j = 0; j < this.steps; j++) {
+					// obtener los parametros del punto (i, j), oscilan entre 1 y cantidad de puntos
+					let u = 1 + ((i / (this.steps - 1)) * (points.length));
+					let v = 1 + ((j / (this.steps - 1)) * (points[0].length));
+	
+					// Divisor para normalizar el peso
+					let normFactor = 0;
+					let nurbsCoef = new Array(points.length);
+					for (let k = 0; k < points.length; k++) {
+						nurbsCoef[k] = new Array(points[0].length);
+						for (let l = 0; l < points[0].length; l++) {
+							const nu = this.NURBS_N(k, this.bSplineN, u), nv = this.NURBS_N(l, this.bSplineM, v);
+							nurbsCoef[k][l] = nu * nv;
+							//normFactor += this.NURBS_N(k, this.bSplineN, u) * this.NURBS_N(l, this.bSplineM, v) * points[k][l].weight;
+							normFactor += nurbsCoef[k][l] * points[k][l].weight;
+						}
+					}
+					// Calcular la posicion del punto (u,v) en base a los puntos de control
+					let pos = [0, 0, 0];
+					for (let k = 0; k < points.length; k++) {
+						for (let l = 0; l < points[0].length; l++) {
+							let cp = points[k][l];
+	
+							// let Ruv = this.NURBS_N(k, this.bSplineN, u) * this.NURBS_N(l, this.bSplineM, v) * cp.weight / normFactor;
+							let Ruv = nurbsCoef[k][l] * cp.weight / normFactor;
+	
+							pos[0] += cp.pos[0] * Ruv;
+							pos[1] += cp.pos[1] * Ruv;
+							pos[2] += cp.pos[2] * Ruv;
+						}
+					}
+					sample.push(pos);
+				}
+			}
+	
+			let triangles = [];
+			// triangular la superficie en base a los puntos obtenidos
+			for (let i = 0; i < this.steps - 1; i++) {
+				for (let j = 0; j < this.steps - 1; j++) {
+					// Tomar de a 4 vertices y dividir en triangulos
+					let p_ij = sample[i * this.steps + j];
+					let p_i1j = sample[(i + 1) * this.steps + j];
+					let p_ij1 = sample[i * this.steps + (j + 1)];
+					let p_i1j1 = sample[(i + 1) * this.steps + (j + 1)];
+	
+					// Triangle: (i,j), (i+1,j), (i,j+1)
+					let normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j, p_ij), vectorSubtraction(p_ij, p_ij1)));
+					triangles.push(p_ij);
+					triangles.push(normal);
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+	
+					// Triangle: (i+1,j), (i,j+1), (i+1,j+1)
+					normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j1, p_i1j), vectorSubtraction(p_i1j, p_ij1)));
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+					triangles.push(p_i1j1);
+					triangles.push(normal);
+				}
+			}
+			triangles = triangles.flat();
+	    gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
+	    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangles), gl.STREAM_DRAW);
+		}
+	}
+	
+	const renderer = new Renderer();
+	
+	let dragging = false;
+
+	// Listeners de eventos en el canvas
+	canvas.addEventListener('mousedown', e => {
+		dragging = true;
+	});
+	canvas.addEventListener('mouseup', e => {
+		dragging = false;
+	});
+	
+	canvas.addEventListener('mousemove', e => {
+		if (dragging) {
+			const x = e.movementX / 2;
+	  	const y = e.movementY / 2;
+	  	renderer.rotate(x, y);
+		}
+	});
+
+	// Listeners del panel de control
+	canvas.addEventListener('wheel', e => {
+	  renderer.zoom(Math.sign(e.deltaY) / 15);
+		e.preventDefault();
+	});
+
+	$('#inputSteps').change(() => {
+		renderer.steps = $('#inputSteps').val();
+		renderer.updateControlPonts(renderer.controlPoints);
+		renderer.render();
+	});
+
+	$('#inputBSn').change(() => {
+		renderer.bSplineN = $('#inputBSn').val();
+		renderer.updateControlPonts(renderer.controlPoints);
+		renderer.render();
+	});
+
+	$('#inputBSm').change(() => {
+		renderer.bSplineM = $('#inputBSm').val();
+		renderer.updateControlPonts(renderer.controlPoints);
+		renderer.render();
+	});
+
+	window.readControlPoints = () => {
+		let controlPoints = renderer.controlPoints;
+		let inputs = $('#controlPointsPanel input');
+		inputs.each((i, input) => {
+			let values = input.id.split('-').splice(1).map(i => parseInt(i));
+			if (values[2] < 3) {
+				controlPoints[values[0]][values[1]].pos[values[2]] = input.value;
+			}
+			else {
+				controlPoints[values[0]][values[1]].weight = input.value;
+			}
+		});
+		renderer.updateControlPonts(controlPoints);
+		renderer.render();
+	}
+
+	function generateControlPoints () {
+		let controlPoints = [];
+		let n = $('#inputCPx')['0'].value;
+		let m = $('#inputCPy')['0'].value
+		for (let i = 0; i < n; i++) {
+			let row = [];
+			for (let j = 0; j < m; j++) {
+				row.push({pos: [-1 + (i / (n - 1)) * 2, 0, -1 + (j / (m - 1)) * 2], weight: 1});
+			}
+			controlPoints.push(row);
+		}
+		renderer.updateControlPonts(controlPoints);
+		renderer.render();
+		let newContent = "";
+		controlPoints.forEach((cpRow, i) => {
+			cpRow.forEach((cp, j) => {
+				newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="number" value="${cp.pos[0]}"></input>,
+					<input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="number" value="${cp.pos[1]}"></input>,
+					<input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="number" value="${cp.pos[2]}"></input>),
+					Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="number" value="${cp.weight}"></input> <br />`;
+			});
+		});
+		$('#controlPointsPanel').html(newContent);
+	}
+
+	$('#inputCPx').change(generateControlPoints);
+	$('#inputCPy').change(generateControlPoints);
+	generateControlPoints();
+})
