@@ -8,7 +8,7 @@ $(document).ready(() => {
 	window.gl = gl;
 
 	const renderer = new Renderer();
-	
+
 	let dragging = false;
 
 	// Listeners de eventos en el canvas
@@ -18,7 +18,7 @@ $(document).ready(() => {
 	canvas.addEventListener('mouseup', e => {
 		dragging = false;
 	});
-	
+
 	canvas.addEventListener('mousemove', e => {
 		if (dragging) {
 			const x = e.movementX / 2;
