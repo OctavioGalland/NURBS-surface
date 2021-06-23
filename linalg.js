@@ -43,6 +43,16 @@ function multMatrix(mat1, mat2) {
   return res;
 }
 
+function multMatrixVec(M, v) {
+	let res = [0, 0, 0, 0];
+	for (let i = 0; i < 4; i++) {
+		for (let k = 0; k < 4; k++) {
+			res[i] += M[k * 4 + i] * v[k];
+		}
+	}
+	return res;
+}
+
 function vectorCrossProduct(v1, v2) {
 	return [v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]];
 }

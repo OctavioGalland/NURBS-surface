@@ -11,41 +11,57 @@ $(document).ready(() => {
 
 		bSplineN = 2;
 		bSplineM = 2;
-		steps = 3;
+		steps = 100;
 		controlPoints = [];
+
+		showControlPoints = true;
 
 		vertexShaderSrc = `
 	    uniform mat4 projection;
 	    uniform mat4 view;
 	    uniform mat4 model;
-	    uniform vec3 lightPos;
-	    uniform vec3 color;
 	
 	    attribute vec3 pos;
 	    attribute vec3 norm;
 	
-	    varying vec3 vColor;
+	    varying vec3 normal;
+	    varying vec3 worldPos;
 	
 	    void main() {
-				vec3 worldPos = (model * vec4(pos, 1)).xyz;
-	      vec3 lightDir = normalize(lightPos - worldPos);
-	      float angle = max(dot(lightDir, norm), 0.2);
-	      vColor = color * angle;
-	      gl_Position = projection * view * model * vec4(pos, 1);
+				worldPos = (model * vec4(pos, 1)).xyz;
+				normal = normalize(norm);
+	      gl_Position = projection * view * vec4(worldPos, 1);
 	    }
 	  `;
 	
 	  fragmentShaderSrc = `
 	    precision lowp float;
-	    varying vec3 vColor;
+
+	    uniform vec3 color;
+	    uniform vec3 lightPos;
+	    uniform vec3 viewPos;
+
+	    varying vec3 normal;
+	    varying vec3 worldPos;
+
 	    void main() {
-	      gl_FragColor = vec4(vColor, 1);
+				vec3 lightDir = normalize(lightPos - worldPos);
+				vec3 viewDir = normalize(viewPos - worldPos);
+				vec3 reflectDir = reflect(-lightDir, normal);
+				float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.);
+				vec3 specular = vec3(1, 1, 1) * spec;
+
+				float angle = max(dot(normal, lightDir), 0.0);
+				vec3 diffuse = color * angle;
+
+				vec3 ambient = color * 0.2;
+	      gl_FragColor = vec4(specular + diffuse + ambient, 1);
 	    }
 	  `;
 	
 	  locations = {
 	    attrib: {pos: -1, norm: -1},
-	    uniform: {projection: -1, view: -1, model: -1, color: -1, lightPos: -1}
+	    uniform: {projection: -1, view: -1, model: -1, color: -1, lightPos: -1, viewPos: -1}
 	  };
 	
 	  constructor () {
@@ -74,6 +90,10 @@ $(document).ready(() => {
 	    this.locations.uniform.color = gl.getUniformLocation(this.program, 'color');
 	    gl.uniform3fv(this.locations.uniform.color, [0, 0, 1]);
 	
+	    this.locations.uniform.viewPos = gl.getUniformLocation(this.program, 'viewPos');
+			this.viewPos = [0, 0, 3];
+	    gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos);
+
 	    this.locations.uniform.lightPos = gl.getUniformLocation(this.program, 'lightPos');
 	    gl.uniform3fv(this.locations.uniform.lightPos, [0, 3, 0]);
 	
@@ -118,8 +138,17 @@ $(document).ready(() => {
 	    this.viewMatrix = multMatrix(createTranslationMatrix(0, 0, -3), createRotationMatrix(this.angleY, 1, 0, 0));
 	    this.viewMatrix = multMatrix(this.viewMatrix, createRotationMatrix(this.angleX, 0, 1, 0));
 	    this.viewMatrix = multMatrix(this.viewMatrix, createScalingMatrix(this.zoomLevel, this.zoomLevel, this.zoomLevel));
+
+			// Mantenemos una copia de la inversa para poder calcular la posicion de la camara (es mas barato esto q inveritrla)
+			this.viewMatrixInv = createScalingMatrix(1 / this.zoomLevel, 1 / this.zoomLevel, 1 / this.zoomLevel);
+			this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleX, 0, 1, 0));
+			this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleY, 1, 0, 0));
+			this.viewMatrixInv = multMatrix(this.viewMatrixInv, createTranslationMatrix(0, 0, 3));
+
+			this.viewPos = multMatrixVec(this.viewMatrixInv, [0, 0, 0, 1]);
 	    gl.useProgram(this.program);
 	    gl.uniformMatrix4fv(this.locations.uniform.view, false, this.viewMatrix);
+	    gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos.splice(0, 3));
 	  }
 	
 	  rotate (dx, dy) {
@@ -143,20 +172,22 @@ $(document).ready(() => {
 	    gl.clearColor(1, 1, 1, 1);
 	    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	
-	    gl.enable(gl.CULL_FACE);
-	    gl.useProgram(this.program);
-	    gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
-	    gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
-	    gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
-	    gl.enableVertexAttribArray(this.locations.attrib.pos);
-	    gl.enableVertexAttribArray(this.locations.attrib.norm);
-	    gl.uniform3fv(this.locations.uniform.color, redColor);
-			for (let i = 0; i < this.controlPoints.length; i++) {
-				for (let j = 0; j < this.controlPoints[i].length; j++) {
-					let modelMat = createTranslationMatrix(this.controlPoints[i][j].pos[0], this.controlPoints[i][j].pos[1], this.controlPoints[i][j].pos[2]);
-					modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
-					gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
-					gl.drawArrays(gl.TRIANGLES, 0, 36);
+			if (this.showControlPoints) {
+				gl.enable(gl.CULL_FACE);
+	    	gl.useProgram(this.program);
+	    	gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
+	    	gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
+	    	gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
+	    	gl.enableVertexAttribArray(this.locations.attrib.pos);
+	    	gl.enableVertexAttribArray(this.locations.attrib.norm);
+	    	gl.uniform3fv(this.locations.uniform.color, redColor);
+				for (let i = 0; i < this.controlPoints.length; i++) {
+					for (let j = 0; j < this.controlPoints[i].length; j++) {
+						let modelMat = createTranslationMatrix(this.controlPoints[i][j].pos[0], this.controlPoints[i][j].pos[1], this.controlPoints[i][j].pos[2]);
+						modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
+						gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
+						gl.drawArrays(gl.TRIANGLES, 0, 36);
+					}
 				}
 			}
 	
@@ -324,6 +355,11 @@ $(document).ready(() => {
 		renderer.render();
 	});
 
+	$('#inputShowCP').change(() => {
+		renderer.showControlPoints = $('#inputShowCP').is('checked');
+		renderer.render();
+	});
+
 	window.readControlPoints = () => {
 		let controlPoints = renderer.controlPoints;
 		let inputs = $('#controlPointsPanel input');
@@ -356,10 +392,10 @@ $(document).ready(() => {
 		let newContent = "";
 		controlPoints.forEach((cpRow, i) => {
 			cpRow.forEach((cp, j) => {
-				newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="number" value="${cp.pos[0]}"></input>,
-					<input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="number" value="${cp.pos[1]}"></input>,
-					<input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="number" value="${cp.pos[2]}"></input>),
-					Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="number" value="${cp.weight}"></input> <br />`;
+				newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
+					<input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
+					<input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
+					Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
 			});
 		});
 		$('#controlPointsPanel').html(newContent);

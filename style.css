@@ -13,15 +13,20 @@ body {
 
 .canvas-container {
 	float: left;
-	padding-left: 3%;
+	padding-left: 15px;
+	padding-top: 15px;
 }
 
 .controls {
-	width: 30%;
-	padding-right: 3%;
+	padding-top: 15px;
+	padding-right: 15px;
 	float: right;
 }
 
 input {
 	width: 50px;
+}
+
+input[type="range"] {
+	width: 100px;
 }
