@@ -213,7 +213,7 @@ class Renderer {
 		//	return 0;
 		//}
 
-		// Version n = 2 hardcodeada
+		//// Version n = 2 hardcodeada
 		//if (i <= t && t <= i + 1) {
 		//	return t - i;
 		//} else if (i + 1 <= t && t <= i + 2) {
@@ -223,10 +223,10 @@ class Renderer {
 		//}
 
 		// Version recursiva generica
-		if (n === 1) {
-			return (i <= t && t <= i + 1) ? 1 : 0;
+		if (n === 0) {
+			return (i <= t && t < i + 1) ? 1 : 0;
 		} else {
-			return this.NURBS_N(i, n - 1, t) * (t - i) / (n - 1) + (1 - (t - (i + 1)) / (n  - 1)) * this.NURBS_N(i + 1, n - 1, t);
+			return this.NURBS_N(i, n - 1, t) * (t - i) / n + this.NURBS_N(i + 1, n - 1, t) * (i + n + 1 - t) / n;
 		}
 	}
 
@@ -234,11 +234,12 @@ class Renderer {
 		this.controlPoints = points;
 		let sample = [];
 		// Samplear (steps * steps) puntos en la superficie
+		let print = true;
 		for (let i = 0; i < this.steps; i++) {
 			for (let j = 0; j < this.steps; j++) {
 				// obtener los parametros del punto (i, j), oscilan entre 1 y cantidad de puntos
-				let u = 1 + ((i / (this.steps - 1)) * (points.length));
-				let v = 1 + ((j / (this.steps - 1)) * (points[0].length));
+				let u = (1 + (this.bSplineN - 2)) + ((i / (this.steps - 1)) * (points.length - (1 + this.bSplineN - 2)));
+				let v = (1 + (this.bSplineM - 2)) + ((j / (this.steps - 1)) * (points[0].length - (1 + this.bSplineM - 2)));
 
 				// Divisor para normalizar el peso
 				let normFactor = 0;
@@ -246,9 +247,8 @@ class Renderer {
 				for (let k = 0; k < points.length; k++) {
 					nurbsCoef[k] = new Array(points[0].length);
 					for (let l = 0; l < points[0].length; l++) {
-						const nu = this.NURBS_N(k, this.bSplineN, u), nv = this.NURBS_N(l, this.bSplineM, v);
+						const nu = this.NURBS_N(k, this.bSplineN - 1, u), nv = this.NURBS_N(l, this.bSplineM - 1, v);
 						nurbsCoef[k][l] = nu * nv;
-						//normFactor += this.NURBS_N(k, this.bSplineN, u) * this.NURBS_N(l, this.bSplineM, v) * points[k][l].weight;
 						normFactor += nurbsCoef[k][l] * points[k][l].weight;
 					}
 				}
@@ -258,7 +258,6 @@ class Renderer {
 					for (let l = 0; l < points[0].length; l++) {
 						let cp = points[k][l];
 
-						// let Ruv = this.NURBS_N(k, this.bSplineN, u) * this.NURBS_N(l, this.bSplineM, v) * cp.weight / normFactor;
 						let Ruv = nurbsCoef[k][l] * cp.weight / normFactor;
 
 						pos[0] += cp.pos[0] * Ruv;
@@ -268,6 +267,7 @@ class Renderer {
 				}
 				sample.push(pos);
 			}
+			print = false;
 		}
 
 		let triangles = [];
