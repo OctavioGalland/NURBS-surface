@@ -23,10 +23,14 @@ body {
 	float: right;
 }
 
-input {
+input[type="number"] {
 	width: 50px;
 }
 
-input[type="range"] {
-	width: 125px;
+#controlPointsPanel input[type="range"] {
+	width: 110px;
+}
+
+#controlPointsPanel input[type="number"] {
+	width: 106.5px;
 }

@@ -27,6 +27,8 @@ $(document).ready(() => {
 		}
 	});
 
+	let useSliders = true;
+
 	// Listeners del panel de control
 	canvas.addEventListener('wheel', e => {
 	  renderer.zoom(Math.sign(e.deltaY) / 15);
@@ -56,20 +58,45 @@ $(document).ready(() => {
 		renderer.render();
 	});
 
+	$('#inputUseSliders').click(() => {
+		useSliders = $('#inputUseSliders').prop('checked');
+		renderControlPointsPanel(renderer.controlPoints);
+	});
+
 	window.readControlPoints = () => {
 		let controlPoints = renderer.controlPoints;
 		let inputs = $('#controlPointsPanel input');
 		inputs.each((i, input) => {
 			let values = input.id.split('-').splice(1).map(i => parseInt(i));
 			if (values[2] < 3) {
-				controlPoints[values[0]][values[1]].pos[values[2]] = input.value;
+				controlPoints[values[0]][values[1]].pos[values[2]] = parseFloat(input.value);
 			}
 			else {
-				controlPoints[values[0]][values[1]].weight = input.value;
+				controlPoints[values[0]][values[1]].weight = parseFloat(input.value);
 			}
 		});
 		renderer.updateControlPonts(controlPoints);
 		renderer.render();
+	}
+
+	function renderControlPointsPanel(controlPoints) {
+		let newContent = "";
+		controlPoints.forEach((cpRow, i) => {
+			cpRow.forEach((cp, j) => {
+				if (useSliders) {
+					newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
+						<input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
+						<input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
+						Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
+				} else {
+					newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="number"step="0.1" value="${cp.pos[0]}"></input>,
+						<input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[1]}"></input>,
+						<input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[2]}"></input>),
+						Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="number" step="0.1" value="${cp.weight}"></input> <br />`;
+				}
+			});
+		});
+		$('#controlPointsPanel').html(newContent);
 	}
 
 	function generateControlPoints () {
@@ -85,16 +112,7 @@ $(document).ready(() => {
 		}
 		renderer.updateControlPonts(controlPoints);
 		renderer.render();
-		let newContent = "";
-		controlPoints.forEach((cpRow, i) => {
-			cpRow.forEach((cp, j) => {
-				newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
-					<input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
-					<input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
-					Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
-			});
-		});
-		$('#controlPointsPanel').html(newContent);
+		renderControlPointsPanel(controlPoints);
 	}
 
 	$('#inputCPx').change(generateControlPoints);
