@@ -10,6 +10,7 @@ class Renderer {
 
 	showControlPoints = true;
 	showLightPosition = true;
+	wireframeMode = false;
 
 	vertexShaderSrc = `
     uniform mat4 projection;
@@ -209,6 +210,9 @@ class Renderer {
 		}
 
 		if (this.controlPoints.length > 0) {
+			if (this.wireframeMode) {
+				gl.uniform1i(this.locations.uniform.usePlainColor, 1);
+			}
 			gl.disable(gl.CULL_FACE);
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
     	gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
@@ -217,7 +221,11 @@ class Renderer {
     	gl.enableVertexAttribArray(this.locations.attrib.norm);
     	gl.uniform3fv(this.locations.uniform.color, blueColor);
 			gl.uniformMatrix4fv(this.locations.uniform.model, false, createIdentityMatrix());
-			gl.drawArrays(gl.TRIANGLES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3);
+			if (this.wireframeMode) {
+				gl.drawArrays(gl.LINES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3 * 2);
+			} else {
+				gl.drawArrays(gl.TRIANGLES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3);
+			}
 		}
   }
 
@@ -316,21 +324,51 @@ class Renderer {
 
 				// Triangle: (i,j), (i+1,j), (i,j+1)
 				let normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j, p_ij), vectorSubtraction(p_ij, p_ij1)));
-				triangles.push(p_ij);
-				triangles.push(normal);
-				triangles.push(p_i1j);
-				triangles.push(normal);
-				triangles.push(p_ij1);
-				triangles.push(normal);
+				if (this.wireframeMode) {
+					triangles.push(p_ij);
+					triangles.push(normal);
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+					triangles.push(p_ij);
+					triangles.push(normal);
+				} else {
+					triangles.push(p_ij);
+					triangles.push(normal);
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+				}
 
 				// Triangle: (i+1,j), (i,j+1), (i+1,j+1)
 				normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j1, p_i1j), vectorSubtraction(p_i1j, p_ij1)));
-				triangles.push(p_i1j);
-				triangles.push(normal);
-				triangles.push(p_ij1);
-				triangles.push(normal);
-				triangles.push(p_i1j1);
-				triangles.push(normal);
+				if (this.wireframeMode) {
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+					triangles.push(p_i1j1);
+					triangles.push(normal);
+					triangles.push(p_i1j1);
+					triangles.push(normal);
+					triangles.push(p_i1j);
+					triangles.push(normal);
+				} else {
+					triangles.push(p_i1j);
+					triangles.push(normal);
+					triangles.push(p_ij1);
+					triangles.push(normal);
+					triangles.push(p_i1j1);
+					triangles.push(normal);
+				}
 			}
 		}
 		triangles = triangles.flat();
