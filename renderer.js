@@ -3,16 +3,16 @@ class Renderer {
   angleY = 0;
   zoomLevel = 1;
 
-	bSplineN = 2;
-	bSplineM = 2;
-	steps = 100;
-	controlPoints = [];
+  bSplineN = 2;
+  bSplineM = 2;
+  steps = 100;
+  controlPoints = [];
 
-	showControlPoints = true;
-	showLightPosition = true;
-	wireframeMode = false;
+  showControlPoints = true;
+  showLightPosition = true;
+  wireframeMode = false;
 
-	vertexShaderSrc = `
+  vertexShaderSrc = `
     uniform mat4 projection;
     uniform mat4 view;
     uniform mat4 model;
@@ -24,8 +24,9 @@ class Renderer {
     varying vec3 worldPos;
 
     void main() {
-			worldPos = (model * vec4(pos, 1)).xyz;
-			normal = normalize(norm);
+      worldPos = (model * vec4(pos, 1)).xyz;
+      // Multiplicamos la normal por la matriz de modelo porque asumimos rotaciones y escalas uniformes
+      normal = normalize(model * vec4(norm, 0)).xyz;
       gl_Position = projection * view * vec4(worldPos, 1);
     }
   `;
@@ -33,7 +34,7 @@ class Renderer {
   fragmentShaderSrc = `
     precision lowp float;
 
-		uniform int usePlainColor;
+    uniform int usePlainColor;
     uniform vec3 color;
     uniform vec3 lightPos;
     uniform vec3 viewPos;
@@ -42,21 +43,25 @@ class Renderer {
     varying vec3 worldPos;
 
     void main() {
-			if (usePlainColor == 1) {
-				gl_FragColor = vec4(color, 1);
-			} else {
-				vec3 lightDir = normalize(lightPos - worldPos);
-				vec3 viewDir = normalize(viewPos - worldPos);
-				vec3 reflectDir = reflect(-lightDir, normal);
-				float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.);
-				vec3 specular = vec3(1, 1, 1) * spec;
+      if (usePlainColor == 1) {
+        gl_FragColor = vec4(color, 1);
+      } else {
+        // Normalizamos la normal dado que la interpolacion pudo haberla roto
+        vec3 nNormal = normalize(normal);
 
-				float angle = max(dot(normal, lightDir), 0.0);
-				vec3 diffuse = color * angle;
+        // Aplicamos Blinn-Phong, asumimos que la luz es blanca
+        vec3 lightDir = normalize(lightPos - worldPos);
+        vec3 viewDir = normalize(viewPos - worldPos);
+        vec3 H = normalize(lightDir + viewDir);
+        float spec = pow(max(dot(nNormal, H), 0.0), 64.);
+        vec3 specular = vec3(1, 1, 1) * spec;
 
-				vec3 ambient = color * 0.2;
-      	gl_FragColor = vec4(specular + diffuse + ambient, 1);
-			}
+        float angle = max(dot(nNormal, lightDir), 0.0);
+        vec3 diffuse = color * angle;
+
+        vec3 ambient = color * 0.2;
+        gl_FragColor = vec4(specular + diffuse + ambient, 1);
+      }
     }
   `;
 
@@ -92,11 +97,11 @@ class Renderer {
     gl.uniform3fv(this.locations.uniform.color, [0, 0, 1]);
 
     this.locations.uniform.viewPos = gl.getUniformLocation(this.program, 'viewPos');
-		this.viewPos = [0, 0, 3];
+    this.viewPos = [0, 0, 3];
     gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos);
 
     this.locations.uniform.lightPos = gl.getUniformLocation(this.program, 'lightPos');
-		this.lightPos = [1, 1, -1];
+    this.lightPos = [1, 1, -1];
     gl.uniform3fv(this.locations.uniform.lightPos, this.lightPos);
 
     this.locations.uniform.usePlainColor = gl.getUniformLocation(this.program, 'usePlainColor');
@@ -143,13 +148,13 @@ class Renderer {
     this.viewMatrix = multMatrix(this.viewMatrix, createRotationMatrix(this.angleX, 0, 1, 0));
     this.viewMatrix = multMatrix(this.viewMatrix, createScalingMatrix(this.zoomLevel, this.zoomLevel, this.zoomLevel));
 
-		// Mantenemos una copia de la inversa para poder calcular la posicion de la camara (es mas barato esto q inveritrla)
-		this.viewMatrixInv = createScalingMatrix(1 / this.zoomLevel, 1 / this.zoomLevel, 1 / this.zoomLevel);
-		this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleX, 0, 1, 0));
-		this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleY, 1, 0, 0));
-		this.viewMatrixInv = multMatrix(this.viewMatrixInv, createTranslationMatrix(0, 0, 3));
+    // Mantenemos una copia de la inversa para poder calcular la posicion de la camara (es mas barato esto q inveritrla)
+    this.viewMatrixInv = createScalingMatrix(1 / this.zoomLevel, 1 / this.zoomLevel, 1 / this.zoomLevel);
+    this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleX, 0, 1, 0));
+    this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleY, 1, 0, 0));
+    this.viewMatrixInv = multMatrix(this.viewMatrixInv, createTranslationMatrix(0, 0, 3));
 
-		this.viewPos = multMatrixVec(this.viewMatrixInv, [0, 0, 0, 1]);
+    this.viewPos = multMatrixVec(this.viewMatrixInv, [0, 0, 0, 1]);
     gl.useProgram(this.program);
     gl.uniformMatrix4fv(this.locations.uniform.view, false, this.viewMatrix);
     gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos.splice(0, 3));
@@ -176,204 +181,204 @@ class Renderer {
     gl.clearColor(0.9, 0.85, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-		// Estado generico para renderizar cubos
-		gl.useProgram(this.program);
-		gl.enable(gl.CULL_FACE);
+    // Estado generico para renderizar cubos
+    gl.useProgram(this.program);
+    gl.enable(gl.CULL_FACE);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
     gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
     gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
     gl.enableVertexAttribArray(this.locations.attrib.pos);
     gl.enableVertexAttribArray(this.locations.attrib.norm);
 
-		// Renderizamos la luz sin usar shading
-		if (this.showLightPosition) {
-    	gl.uniform3fv(this.locations.uniform.color, whiteColor);
-			gl.uniform1i(this.locations.uniform.usePlainColor, 1);
-			let modelMat = createTranslationMatrix(this.lightPos[0], this.lightPos[1], this.lightPos[2]);
-			modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
-			gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
-			gl.drawArrays(gl.TRIANGLES, 0, 36);
-		}
+    // Renderizamos la luz sin usar shading
+    if (this.showLightPosition) {
+      gl.uniform3fv(this.locations.uniform.color, whiteColor);
+      gl.uniform1i(this.locations.uniform.usePlainColor, 1);
+      let modelMat = createTranslationMatrix(this.lightPos[0], this.lightPos[1], this.lightPos[2]);
+      modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
+      gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
+      gl.drawArrays(gl.TRIANGLES, 0, 36);
+    }
 
-		// De aca en mas tenemos en cuenta la iluminacion
-		gl.uniform1i(this.locations.uniform.usePlainColor, 0);
-		if (this.showControlPoints) {
-    	gl.uniform3fv(this.locations.uniform.color, redColor);
-			for (let i = 0; i < this.controlPoints.length; i++) {
-				for (let j = 0; j < this.controlPoints[i].length; j++) {
-					let modelMat = createTranslationMatrix(this.controlPoints[i][j].pos[0], this.controlPoints[i][j].pos[1], this.controlPoints[i][j].pos[2]);
-					modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
-					gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
-					gl.drawArrays(gl.TRIANGLES, 0, 36);
-				}
-			}
-		}
+    // De aca en mas tenemos en cuenta la iluminacion
+    gl.uniform1i(this.locations.uniform.usePlainColor, 0);
+    if (this.showControlPoints) {
+      gl.uniform3fv(this.locations.uniform.color, redColor);
+      for (let i = 0; i < this.controlPoints.length; i++) {
+        for (let j = 0; j < this.controlPoints[i].length; j++) {
+          let modelMat = createTranslationMatrix(this.controlPoints[i][j].pos[0], this.controlPoints[i][j].pos[1], this.controlPoints[i][j].pos[2]);
+          modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
+          gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
+          gl.drawArrays(gl.TRIANGLES, 0, 36);
+        }
+      }
+    }
 
-		if (this.controlPoints.length > 0) {
-			if (this.wireframeMode) {
-				gl.uniform1i(this.locations.uniform.usePlainColor, 1);
-			}
-			gl.disable(gl.CULL_FACE);
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
-    	gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
-    	gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
-    	gl.enableVertexAttribArray(this.locations.attrib.pos);
-    	gl.enableVertexAttribArray(this.locations.attrib.norm);
-    	gl.uniform3fv(this.locations.uniform.color, blueColor);
-			gl.uniformMatrix4fv(this.locations.uniform.model, false, createIdentityMatrix());
-			if (this.wireframeMode) {
-				gl.drawArrays(gl.LINES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3 * 2);
-			} else {
-				gl.drawArrays(gl.TRIANGLES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3);
-			}
-		}
+    if (this.controlPoints.length > 0) {
+      if (this.wireframeMode) {
+        gl.uniform1i(this.locations.uniform.usePlainColor, 1);
+      }
+      gl.disable(gl.CULL_FACE);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
+      gl.vertexAttribPointer(this.locations.attrib.pos, 3, gl.FLOAT, false, 24, 0);
+      gl.vertexAttribPointer(this.locations.attrib.norm, 3, gl.FLOAT, false, 24, 12);
+      gl.enableVertexAttribArray(this.locations.attrib.pos);
+      gl.enableVertexAttribArray(this.locations.attrib.norm);
+      gl.uniform3fv(this.locations.uniform.color, blueColor);
+      gl.uniformMatrix4fv(this.locations.uniform.model, false, createIdentityMatrix());
+      if (this.wireframeMode) {
+        gl.drawArrays(gl.LINES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3 * 2);
+      } else {
+        gl.drawArrays(gl.TRIANGLES, 0, (this.steps - 1) * (this.steps - 1) * 2 * 3);
+      }
+    }
   }
 
-	NURBS_N(i, n, t) {
-		// Version n = 3 hardcodeada
-		//if (i <= t && t < i + 1) {
-		//	let u = t - i;
-		//	return Math.pow(u, 2) / 2;
-		//} else if (i + 1 <= t && t < i + 2) {
-		//	let u = t - (i + 1);
-		//	return -Math.pow(u, 2)  + u + 1/2;
-		//} else if (i + 2 <= t && t < i + 3) {
-		//	let u = t -  (i + 2);
-		//	return Math.pow(1 - u, 2) / 2;
-		//} else {
-		//	return 0;
-		//}
+  NURBS_N(i, n, t) {
+    // Version n = 3 hardcodeada
+    //if (i <= t && t < i + 1) {
+    //  let u = t - i;
+    //  return Math.pow(u, 2) / 2;
+    //} else if (i + 1 <= t && t < i + 2) {
+    //  let u = t - (i + 1);
+    //  return -Math.pow(u, 2)  + u + 1/2;
+    //} else if (i + 2 <= t && t < i + 3) {
+    //  let u = t -  (i + 2);
+    //  return Math.pow(1 - u, 2) / 2;
+    //} else {
+    //  return 0;
+    //}
 
-		//// Version n = 2 hardcodeada
-		//if (i <= t && t <= i + 1) {
-		//	return t - i;
-		//} else if (i + 1 <= t && t <= i + 2) {
-		//	return 2 - t + i;
-		//} else {
-		//	return 0;
-		//}
+    //// Version n = 2 hardcodeada
+    //if (i <= t && t <= i + 1) {
+    //  return t - i;
+    //} else if (i + 1 <= t && t <= i + 2) {
+    //  return 2 - t + i;
+    //} else {
+    //  return 0;
+    //}
 
-		// Version recursiva generica
-		if (n === 0) {
-			return (i <= t && t < i + 1) ? 1 : 0;
-		} else {
-			return this.NURBS_N(i, n - 1, t) * (t - i) / n + this.NURBS_N(i + 1, n - 1, t) * (i + n + 1 - t) / n;
-		}
-	}
+    // Version recursiva generica
+    if (n === 0) {
+      return (i <= t && t < i + 1) ? 1 : 0;
+    } else {
+      return this.NURBS_N(i, n - 1, t) * (t - i) / n + this.NURBS_N(i + 1, n - 1, t) * (i + n + 1 - t) / n;
+    }
+  }
 
-	updateLightPos (pos) {
-		this.lightPos = pos;
+  updateLightPos (pos) {
+    this.lightPos = pos;
     gl.uniform3fv(this.locations.uniform.lightPos, this.lightPos);
-		this.render();
-	}
+    this.render();
+  }
 
-	updateControlPonts (points) {
-		this.controlPoints = points;
-		let sample = [];
-		// Samplear (steps * steps) puntos en la superficie
-		let print = true;
-		for (let i = 0; i < this.steps; i++) {
-			for (let j = 0; j < this.steps; j++) {
-				// obtener los parametros del punto (i, j), oscilan entre 1 y cantidad de puntos
-				let u = (1 + (this.bSplineN - 2)) + ((i / (this.steps - 1)) * (points.length - (1 + this.bSplineN - 2)));
-				let v = (1 + (this.bSplineM - 2)) + ((j / (this.steps - 1)) * (points[0].length - (1 + this.bSplineM - 2)));
+  updateControlPonts (points) {
+    this.controlPoints = points;
+    let sample = [];
+    // Samplear (steps * steps) puntos en la superficie
+    let print = true;
+    for (let i = 0; i < this.steps; i++) {
+      for (let j = 0; j < this.steps; j++) {
+        // obtener los parametros del punto (i, j), oscilan entre 1 y cantidad de puntos
+        let u = (1 + (this.bSplineN - 2)) + ((i / (this.steps - 1)) * (points.length - (1 + this.bSplineN - 2)));
+        let v = (1 + (this.bSplineM - 2)) + ((j / (this.steps - 1)) * (points[0].length - (1 + this.bSplineM - 2)));
 
-				// Divisor para normalizar el peso
-				let normFactor = 0;
-				let nurbsCoef = new Array(points.length);
-				let sum = 0;
-				for (let k = 0; k < points.length; k++) {
-					nurbsCoef[k] = new Array(points[0].length);
-					for (let l = 0; l < points[0].length; l++) {
-						const nu = this.NURBS_N(k, this.bSplineN - 1, u), nv = this.NURBS_N(l, this.bSplineM - 1, v);
-						nurbsCoef[k][l] = nu * nv;
-						sum += nu * nv;
-						normFactor += nurbsCoef[k][l] * points[k][l].weight;
-					}
-				}
-				if (Math.abs(sum - 1) > 0.0001) {
-					console.warn(`${sum} should be 1 at (u, v) = (${u},${v})`);
-				}
-				// Calcular la posicion del punto (u,v) en base a los puntos de control
-				let pos = [0, 0, 0];
-				for (let k = 0; k < points.length; k++) {
-					for (let l = 0; l < points[0].length; l++) {
-						let cp = points[k][l];
+        // Divisor para normalizar el peso
+        let normFactor = 0;
+        let nurbsCoef = new Array(points.length);
+        let sum = 0;
+        for (let k = 0; k < points.length; k++) {
+          nurbsCoef[k] = new Array(points[0].length);
+          for (let l = 0; l < points[0].length; l++) {
+            const nu = this.NURBS_N(k, this.bSplineN - 1, u), nv = this.NURBS_N(l, this.bSplineM - 1, v);
+            nurbsCoef[k][l] = nu * nv;
+            sum += nu * nv;
+            normFactor += nurbsCoef[k][l] * points[k][l].weight;
+          }
+        }
+        if (Math.abs(sum - 1) > 0.0001) {
+          console.warn(`${sum} should be 1 at (u, v) = (${u},${v})`);
+        }
+        // Calcular la posicion del punto (u,v) en base a los puntos de control
+        let pos = [0, 0, 0];
+        for (let k = 0; k < points.length; k++) {
+          for (let l = 0; l < points[0].length; l++) {
+            let cp = points[k][l];
 
-						let Ruv = nurbsCoef[k][l] * cp.weight / normFactor;
+            let Ruv = nurbsCoef[k][l] * cp.weight / normFactor;
 
-						pos[0] += cp.pos[0] * Ruv;
-						pos[1] += cp.pos[1] * Ruv;
-						pos[2] += cp.pos[2] * Ruv;
-					}
-				}
-				sample.push(pos);
-			}
-			print = false;
-		}
+            pos[0] += cp.pos[0] * Ruv;
+            pos[1] += cp.pos[1] * Ruv;
+            pos[2] += cp.pos[2] * Ruv;
+          }
+        }
+        sample.push(pos);
+      }
+      print = false;
+    }
 
-		let triangles = [];
-		// triangular la superficie en base a los puntos obtenidos
-		for (let i = 0; i < this.steps - 1; i++) {
-			for (let j = 0; j < this.steps - 1; j++) {
-				// Tomar de a 4 vertices y dividir en triangulos
-				let p_ij = sample[i * this.steps + j];
-				let p_i1j = sample[(i + 1) * this.steps + j];
-				let p_ij1 = sample[i * this.steps + (j + 1)];
-				let p_i1j1 = sample[(i + 1) * this.steps + (j + 1)];
+    let triangles = [];
+    // triangular la superficie en base a los puntos obtenidos
+    for (let i = 0; i < this.steps - 1; i++) {
+      for (let j = 0; j < this.steps - 1; j++) {
+        // Tomar de a 4 vertices y dividir en triangulos
+        let p_ij = sample[i * this.steps + j];
+        let p_i1j = sample[(i + 1) * this.steps + j];
+        let p_ij1 = sample[i * this.steps + (j + 1)];
+        let p_i1j1 = sample[(i + 1) * this.steps + (j + 1)];
 
-				// Triangle: (i,j), (i+1,j), (i,j+1)
-				let normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j, p_ij), vectorSubtraction(p_ij, p_ij1)));
-				if (this.wireframeMode) {
-					triangles.push(p_ij);
-					triangles.push(normal);
-					triangles.push(p_i1j);
-					triangles.push(normal);
-					triangles.push(p_i1j);
-					triangles.push(normal);
-					triangles.push(p_ij1);
-					triangles.push(normal);
-					triangles.push(p_ij1);
-					triangles.push(normal);
-					triangles.push(p_ij);
-					triangles.push(normal);
-				} else {
-					triangles.push(p_ij);
-					triangles.push(normal);
-					triangles.push(p_i1j);
-					triangles.push(normal);
-					triangles.push(p_ij1);
-					triangles.push(normal);
-				}
+        // Triangle: (i,j), (i+1,j), (i,j+1)
+        let normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j, p_ij), vectorSubtraction(p_ij, p_ij1)));
+        if (this.wireframeMode) {
+          triangles.push(p_ij);
+          triangles.push(normal);
+          triangles.push(p_i1j);
+          triangles.push(normal);
+          triangles.push(p_i1j);
+          triangles.push(normal);
+          triangles.push(p_ij1);
+          triangles.push(normal);
+          triangles.push(p_ij1);
+          triangles.push(normal);
+          triangles.push(p_ij);
+          triangles.push(normal);
+        } else {
+          triangles.push(p_ij);
+          triangles.push(normal);
+          triangles.push(p_i1j);
+          triangles.push(normal);
+          triangles.push(p_ij1);
+          triangles.push(normal);
+        }
 
-				// Triangle: (i+1,j), (i,j+1), (i+1,j+1)
-				normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j1, p_i1j), vectorSubtraction(p_i1j, p_ij1)));
-				if (this.wireframeMode) {
-					triangles.push(p_i1j);
-					triangles.push(normal);
-					triangles.push(p_ij1);
-					triangles.push(normal);
-					triangles.push(p_ij1);
-					triangles.push(normal);
-					triangles.push(p_i1j1);
-					triangles.push(normal);
-					triangles.push(p_i1j1);
-					triangles.push(normal);
-					triangles.push(p_i1j);
-					triangles.push(normal);
-				} else {
-					triangles.push(p_i1j);
-					triangles.push(normal);
-					triangles.push(p_ij1);
-					triangles.push(normal);
-					triangles.push(p_i1j1);
-					triangles.push(normal);
-				}
-			}
-		}
-		triangles = triangles.flat();
+        // Triangle: (i+1,j), (i,j+1), (i+1,j+1)
+        normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j1, p_i1j), vectorSubtraction(p_i1j, p_ij1)));
+        if (this.wireframeMode) {
+          triangles.push(p_i1j);
+          triangles.push(normal);
+          triangles.push(p_ij1);
+          triangles.push(normal);
+          triangles.push(p_ij1);
+          triangles.push(normal);
+          triangles.push(p_i1j1);
+          triangles.push(normal);
+          triangles.push(p_i1j1);
+          triangles.push(normal);
+          triangles.push(p_i1j);
+          triangles.push(normal);
+        } else {
+          triangles.push(p_i1j);
+          triangles.push(normal);
+          triangles.push(p_ij1);
+          triangles.push(normal);
+          triangles.push(p_i1j1);
+          triangles.push(normal);
+        }
+      }
+    }
+    triangles = triangles.flat();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangles), gl.STREAM_DRAW);
-	}
+  }
 }
 

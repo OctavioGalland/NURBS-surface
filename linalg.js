@@ -44,29 +44,29 @@ function multMatrix(mat1, mat2) {
 }
 
 function multMatrixVec(M, v) {
-	let res = [0, 0, 0, 0];
-	for (let i = 0; i < 4; i++) {
-		for (let k = 0; k < 4; k++) {
-			res[i] += M[k * 4 + i] * v[k];
-		}
-	}
-	return res;
+  let res = [0, 0, 0, 0];
+  for (let i = 0; i < 4; i++) {
+    for (let k = 0; k < 4; k++) {
+      res[i] += M[k * 4 + i] * v[k];
+    }
+  }
+  return res;
 }
 
 function vectorCrossProduct(v1, v2) {
-	return [v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]];
+  return [v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]];
 }
 
 function vectorSubtraction(v1, v2) {
-	return [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]];
+  return [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]];
 }
 
 function length(v) {
-	return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 function normalize(v) {
-	const len = length(v);
-	return [v[0] / len, v[1] / len, v[2] / len];
+  const len = length(v);
+  return [v[0] / len, v[1] / len, v[2] / len];
 }
 
 
