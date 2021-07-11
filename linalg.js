@@ -61,12 +61,19 @@ function vectorSubtraction(v1, v2) {
   return [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]];
 }
 
+function vectorAddition(v1, v2) {
+  return [v1[0] + v2[0], v1[1] + v2[1], v1[2] + v2[2]];
+}
+
+function vectorScale(v, scalar) {
+  return [v[0] * scalar, v[1] * scalar, v[2] * scalar];
+}
+
 function length(v) {
   return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
+
 function normalize(v) {
   const len = length(v);
   return [v[0] / len, v[1] / len, v[2] / len];
 }
-
-

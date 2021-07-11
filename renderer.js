@@ -5,7 +5,7 @@ class Renderer {
 
   bSplineN = 2;
   bSplineM = 2;
-  steps = 100;
+  steps = 5;
   controlPoints = [];
 
   showControlPoints = true;
@@ -274,9 +274,9 @@ class Renderer {
 
   updateControlPonts (points) {
     this.controlPoints = points;
-    let sample = [];
+    let sample = new Array(this.steps * this.steps);
+    let index = 0;
     // Samplear (steps * steps) puntos en la superficie
-    let print = true;
     for (let i = 0; i < this.steps; i++) {
       for (let j = 0; j < this.steps; j++) {
         // obtener los parametros del punto (i, j), oscilan entre 1 y cantidad de puntos
@@ -303,82 +303,104 @@ class Renderer {
         let pos = [0, 0, 0];
         for (let k = 0; k < points.length; k++) {
           for (let l = 0; l < points[0].length; l++) {
-            let cp = points[k][l];
+            const cp = points[k][l];
 
-            let Ruv = nurbsCoef[k][l] * cp.weight / normFactor;
+            const Ruv = nurbsCoef[k][l] * cp.weight / normFactor;
 
             pos[0] += cp.pos[0] * Ruv;
             pos[1] += cp.pos[1] * Ruv;
             pos[2] += cp.pos[2] * Ruv;
           }
         }
-        sample.push(pos);
+        sample[index++]  = pos;
       }
-      print = false;
     }
 
-    let triangles = [];
+    let triangles = new Array((this.steps - 1) * (this.steps - 1) * 2 * 6);
+    if (this.wireframeMode) triangles = new Array((this.steps - 1) * (this.steps - 1) * 2 * 6 * 2);
+    index = 0;
     // triangular la superficie en base a los puntos obtenidos
     for (let i = 0; i < this.steps - 1; i++) {
       for (let j = 0; j < this.steps - 1; j++) {
         // Tomar de a 4 vertices y dividir en triangulos
-        let p_ij = sample[i * this.steps + j];
-        let p_i1j = sample[(i + 1) * this.steps + j];
-        let p_ij1 = sample[i * this.steps + (j + 1)];
-        let p_i1j1 = sample[(i + 1) * this.steps + (j + 1)];
+        const p_ij = sample[i * this.steps + j];
+        const p_i1j = sample[(i + 1) * this.steps + j];
+        const p_ij1 = sample[i * this.steps + (j + 1)];
+        const p_i1j1 = sample[(i + 1) * this.steps + (j + 1)];
 
         // Triangle: (i,j), (i+1,j), (i,j+1)
         let normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j, p_ij), vectorSubtraction(p_ij, p_ij1)));
         if (this.wireframeMode) {
-          triangles.push(p_ij);
-          triangles.push(normal);
-          triangles.push(p_i1j);
-          triangles.push(normal);
-          triangles.push(p_i1j);
-          triangles.push(normal);
-          triangles.push(p_ij1);
-          triangles.push(normal);
-          triangles.push(p_ij1);
-          triangles.push(normal);
-          triangles.push(p_ij);
-          triangles.push(normal);
+          triangles[index++] = p_ij;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij1;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij1;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij;
+          triangles[index++] = normal;
         } else {
-          triangles.push(p_ij);
-          triangles.push(normal);
-          triangles.push(p_i1j);
-          triangles.push(normal);
-          triangles.push(p_ij1);
-          triangles.push(normal);
+          triangles[index++] = p_ij;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij1;
+          triangles[index++] = normal;
         }
 
         // Triangle: (i+1,j), (i,j+1), (i+1,j+1)
         normal = normalize(vectorCrossProduct(vectorSubtraction(p_i1j1, p_i1j), vectorSubtraction(p_i1j, p_ij1)));
         if (this.wireframeMode) {
-          triangles.push(p_i1j);
-          triangles.push(normal);
-          triangles.push(p_ij1);
-          triangles.push(normal);
-          triangles.push(p_ij1);
-          triangles.push(normal);
-          triangles.push(p_i1j1);
-          triangles.push(normal);
-          triangles.push(p_i1j1);
-          triangles.push(normal);
-          triangles.push(p_i1j);
-          triangles.push(normal);
+          triangles[index++] = p_i1j;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij1;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij1;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j1;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j1;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j;
+          triangles[index++] = normal;
         } else {
-          triangles.push(p_i1j);
-          triangles.push(normal);
-          triangles.push(p_ij1);
-          triangles.push(normal);
-          triangles.push(p_i1j1);
-          triangles.push(normal);
+          triangles[index++] = p_i1j;
+          triangles[index++] = normal;
+          triangles[index++] = p_ij1;
+          triangles[index++] = normal;
+          triangles[index++] = p_i1j1;
+          triangles[index++] = normal;
         }
       }
     }
-    triangles = triangles.flat();
+
+    if (!this.wireframeMode) {
+      // Tomar el promedio de las normales que inciden sobre cada vertice para suavizar la superficie
+      let averagedTriangles = new Array(triangles.length)
+      for (let i = 0; i < triangles.length; i += 2) {
+        const vertex = triangles[i];
+        let normal = [0, 0, 0];
+        let normalsCount = 0;
+        for (let j = 0; j < triangles.length; j+= 2) {
+          const difference = vectorSubtraction(vertex, triangles[j]);
+          // Si dos vertices son muy parecidos, asumimos que son el mismo y promediamos las normales
+          if (difference[0] * difference[0] + difference[1] * difference[1] + difference[2] * difference[2] < 0.001) {
+            normal = vectorAddition(normal, triangles[j + 1]);
+            normalsCount++;
+          }
+        }
+        normal = vectorScale(normal, 1 / normalsCount);
+        averagedTriangles[i] = vertex;
+        averagedTriangles[i + 1] = normal;
+      }
+      triangles = averagedTriangles;
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.surfaceMeshBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangles), gl.STREAM_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangles.flat()), gl.STREAM_DRAW);
   }
 }
 
