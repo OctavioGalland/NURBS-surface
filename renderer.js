@@ -386,16 +386,23 @@ class Renderer {
         const vertex = triangles[i];
         let normal = [0, 0, 0];
         let normalsCount = 0;
-        // Look for matching vertices two rows before and after the current one
-        const rowIndex = Math.floor(i / elementsPerRow);
-        const start = Math.max((rowIndex - 2) * elementsPerRow, 0);
-        const end = Math.min((rowIndex + 3) * elementsPerRow, triangles.length);
-        for (let j = start; j < end; j+= 2) {
-          const difference = vectorSubtraction(vertex, triangles[j]);
-          // If two given vertices are too close, we assume they are the same vertex and average their normals
-          if (difference[0] * difference[0] + difference[1] * difference[1] + difference[2] * difference[2] < 0.0000001) {
-            normal = vectorAddition(normal, triangles[j + 1]);
-            normalsCount++;
+        let visitedVertices = {};
+        // Look for matching vertices 3 triangles around this vertex
+        for (let j = -3; j < 4; j++) {
+          for (let k = -3; k < 4; k++) {
+            for (let l = 0; l < 3; l++) {
+              const offset = j * elementsPerRow + k * 6 + l * 2;
+              const vertexIndex = i + offset;
+              const vertexId = vertexIndex.toString();
+              if (vertexIndex >= 0 && vertexIndex < triangles.length && !visitedVertices[vertexId]) {
+                visitedVertices[vertexId] = true;
+                const difference = vectorSubtraction(vertex, triangles[vertexIndex]);
+                if (difference[0] * difference[0] + difference[1] * difference[1] + difference[2] * difference[2] < 0.0000001) {
+                  normal = vectorAddition(normal, triangles[vertexIndex + 1]);
+                  normalsCount++;
+                }
+              }
+            }
           }
         }
         normal = vectorScale(normal, 1 / normalsCount);
