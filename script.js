@@ -11,7 +11,7 @@ $(document).ready(() => {
 
   let dragging = false;
 
-  // Listeners de eventos en el canvas
+  // Canvas event listeners
   canvas.addEventListener('mousedown', e => {
     dragging = true;
   });
@@ -29,7 +29,7 @@ $(document).ready(() => {
 
   let useSliders = true;
 
-  // Listeners del panel de control
+  // Control panel event listeners
   canvas.addEventListener('wheel', e => {
     renderer.zoom(-Math.sign(e.deltaY) / 15);
     e.preventDefault();

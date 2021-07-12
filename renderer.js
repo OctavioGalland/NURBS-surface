@@ -5,7 +5,7 @@ class Renderer {
 
   bSplineN = 2;
   bSplineM = 2;
-  steps = 5;
+  steps = 10;
   controlPoints = [];
 
   showControlPoints = true;
@@ -26,15 +26,15 @@ class Renderer {
 
     void main() {
       worldPos = (model * vec4(pos, 1)).xyz;
-      // Multiplicamos la normal por la matriz de modelo porque asumimos rotaciones y escalas uniformes
-      normal = normalize(model * vec4(norm, 0)).xyz;
+      normal = norm;
       gl_Position = projection * view * vec4(worldPos, 1);
     }
   `;
 
   fragmentShaderSrc = `
-    precision lowp float;
+    precision highp float;
 
+    uniform mat4 model;
     uniform int usePlainColor;
     uniform vec3 color;
     uniform vec3 lightPos;
@@ -47,10 +47,10 @@ class Renderer {
       if (usePlainColor == 1) {
         gl_FragColor = vec4(color, 1);
       } else {
-        // Normalizamos la normal dado que la interpolacion pudo haberla roto
-        vec3 nNormal = normalize(normal);
+        // We can multiply the normal by the model matrix because we assume it just consists of rotations and uniform scalings
+        vec3 nNormal = normalize((model * vec4(normalize(normal), 0)).xyz);
 
-        // Aplicamos Blinn-Phong, asumimos que la luz es blanca
+        // Apply Blinn-Phong assuming a white light
         vec3 lightDir = normalize(lightPos - worldPos);
         vec3 viewDir = normalize(viewPos - worldPos);
         vec3 H = normalize(lightDir + viewDir);
@@ -149,7 +149,7 @@ class Renderer {
     this.viewMatrix = multMatrix(this.viewMatrix, createRotationMatrix(this.angleX, 0, 1, 0));
     this.viewMatrix = multMatrix(this.viewMatrix, createScalingMatrix(this.zoomLevel, this.zoomLevel, this.zoomLevel));
 
-    // Mantenemos una copia de la inversa para poder calcular la posicion de la camara (es mas barato esto q inveritrla)
+    // Calculate the inverse of the view matrix as we go, this is cheaper than inverting it afterwards
     this.viewMatrixInv = createScalingMatrix(1 / this.zoomLevel, 1 / this.zoomLevel, 1 / this.zoomLevel);
     this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleX, 0, 1, 0));
     this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleY, 1, 0, 0));
@@ -182,7 +182,6 @@ class Renderer {
     gl.clearColor(0.9, 0.85, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Estado generico para renderizar cubos
     gl.useProgram(this.program);
     gl.enable(gl.CULL_FACE);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeMeshBuffer);
@@ -191,7 +190,6 @@ class Renderer {
     gl.enableVertexAttribArray(this.locations.attrib.pos);
     gl.enableVertexAttribArray(this.locations.attrib.norm);
 
-    // Renderizamos la luz sin usar shading
     if (this.showLightPosition) {
       gl.uniform3fv(this.locations.uniform.color, whiteColor);
       gl.uniform1i(this.locations.uniform.usePlainColor, 1);
@@ -201,7 +199,6 @@ class Renderer {
       gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
 
-    // De aca en mas tenemos en cuenta la iluminacion
     gl.uniform1i(this.locations.uniform.usePlainColor, 0);
     if (this.showControlPoints) {
       gl.uniform3fv(this.locations.uniform.color, redColor);
@@ -236,7 +233,7 @@ class Renderer {
   }
 
   NURBS_N(i, n, t) {
-    // Version n = 3 hardcodeada
+    // Version n = 3 used for debugging
     //if (i <= t && t < i + 1) {
     //  let u = t - i;
     //  return Math.pow(u, 2) / 2;
@@ -250,7 +247,7 @@ class Renderer {
     //  return 0;
     //}
 
-    //// Version n = 2 hardcodeada
+    //// Version n = 2 used for debugging
     //if (i <= t && t <= i + 1) {
     //  return t - i;
     //} else if (i + 1 <= t && t <= i + 2) {
@@ -259,7 +256,7 @@ class Renderer {
     //  return 0;
     //}
 
-    // Version recursiva generica
+    // Recursive version
     if (n === 0) {
       return (i <= t && t < i + 1) ? 1 : 0;
     } else {
@@ -277,14 +274,14 @@ class Renderer {
     this.controlPoints = points;
     let sample = new Array(this.steps * this.steps);
     let index = 0;
-    // Samplear (steps * steps) puntos en la superficie
+    // Sample (steps * steps) points on the surface
     for (let i = 0; i < this.steps; i++) {
       for (let j = 0; j < this.steps; j++) {
-        // obtener los parametros del punto (i, j), oscilan entre 1 y cantidad de puntos
+        // get the parameters for point (i, j)
         let u = (1 + (this.bSplineN - 2)) + ((i / (this.steps - 1)) * (points.length - (1 + this.bSplineN - 2)));
         let v = (1 + (this.bSplineM - 2)) + ((j / (this.steps - 1)) * (points[0].length - (1 + this.bSplineM - 2)));
 
-        // Divisor para normalizar el peso
+        // Coefficient used for normalizing the weights
         let normFactor = 0;
         let nurbsCoef = new Array(points.length);
         let sum = 0;
@@ -300,7 +297,7 @@ class Renderer {
         if (Math.abs(sum - 1) > 0.0001) {
           console.warn(`${sum} should be 1 at (u, v) = (${u},${v})`);
         }
-        // Calcular la posicion del punto (u,v) en base a los puntos de control
+        // Calculate the position for point (u, v) based on the control points
         let pos = [0, 0, 0];
         for (let k = 0; k < points.length; k++) {
           for (let l = 0; l < points[0].length; l++) {
@@ -320,10 +317,10 @@ class Renderer {
     let triangles = new Array((this.steps - 1) * (this.steps - 1) * 2 * 6);
     if (this.wireframeMode) triangles = new Array((this.steps - 1) * (this.steps - 1) * 2 * 6 * 2);
     index = 0;
-    // triangular la superficie en base a los puntos obtenidos
+    // Triangulate the surface
     for (let i = 0; i < this.steps - 1; i++) {
       for (let j = 0; j < this.steps - 1; j++) {
-        // Tomar de a 4 vertices y dividir en triangulos
+        // Take 4 vertices and group them by triangles
         const p_ij = sample[i * this.steps + j];
         const p_i1j = sample[(i + 1) * this.steps + j];
         const p_ij1 = sample[i * this.steps + (j + 1)];
@@ -380,7 +377,7 @@ class Renderer {
     }
 
     if (!this.wireframeMode && this.averageNormals) {
-      // Tomar el promedio de las normales que inciden sobre cada vertice para suavizar la superficie
+      // Average normals for each vertex in order to get a smoother look
       let averagedTriangles = new Array(triangles.length)
       const trianglesPerRow = (this.steps - 1) * 2;
       const elementsPerTriangle = 6;
@@ -389,13 +386,14 @@ class Renderer {
         const vertex = triangles[i];
         let normal = [0, 0, 0];
         let normalsCount = 0;
+        // Look for matching vertices two rows before and after the current one
         const rowIndex = Math.floor(i / elementsPerRow);
-        const start = Math.max((rowIndex - 1) * elementsPerRow, 0);
-        const end = Math.min((rowIndex + 2) * elementsPerRow, triangles.length);
+        const start = Math.max((rowIndex - 2) * elementsPerRow, 0);
+        const end = Math.min((rowIndex + 3) * elementsPerRow, triangles.length);
         for (let j = start; j < end; j+= 2) {
           const difference = vectorSubtraction(vertex, triangles[j]);
-          // Si dos vertices son muy parecidos, asumimos que son el mismo y promediamos las normales
-          if (difference[0] * difference[0] + difference[1] * difference[1] + difference[2] * difference[2] < 0.001) {
+          // If two given vertices are too close, we assume they are the same vertex and average their normals
+          if (difference[0] * difference[0] + difference[1] * difference[1] + difference[2] * difference[2] < 0.0000001) {
             normal = vectorAddition(normal, triangles[j + 1]);
             normalsCount++;
           }
