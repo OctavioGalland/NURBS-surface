@@ -26,15 +26,14 @@ class Renderer {
 
     void main() {
       worldPos = (model * vec4(pos, 1)).xyz;
-      normal = norm;
+      normal = normalize(model * vec4(norm, 0)).xyz;
       gl_Position = projection * view * vec4(worldPos, 1);
     }
   `;
 
   fragmentShaderSrc = `
-    precision highp float;
+    precision mediump float;
 
-    uniform mat4 model;
     uniform int usePlainColor;
     uniform vec3 color;
     uniform vec3 lightPos;
@@ -47,8 +46,7 @@ class Renderer {
       if (usePlainColor == 1) {
         gl_FragColor = vec4(color, 1);
       } else {
-        // We can multiply the normal by the model matrix because we assume it just consists of rotations and uniform scalings
-        vec3 nNormal = normalize((model * vec4(normalize(normal), 0)).xyz);
+        vec3 nNormal = normalize(normal);
 
         // Apply Blinn-Phong assuming a white light
         vec3 lightDir = normalize(lightPos - worldPos);
@@ -407,7 +405,7 @@ class Renderer {
         }
         normal = vectorScale(normal, 1 / normalsCount);
         averagedTriangles[i] = vertex;
-        averagedTriangles[i + 1] = normal;
+        averagedTriangles[i + 1] = normalize(normal);
       }
       triangles = averagedTriangles;
     }
