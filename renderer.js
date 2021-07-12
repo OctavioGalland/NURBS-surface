@@ -11,6 +11,7 @@ class Renderer {
   showControlPoints = true;
   showLightPosition = true;
   wireframeMode = false;
+  averageNormals = false;
 
   vertexShaderSrc = `
     uniform mat4 projection;
@@ -378,14 +379,20 @@ class Renderer {
       }
     }
 
-    if (!this.wireframeMode) {
+    if (!this.wireframeMode && this.averageNormals) {
       // Tomar el promedio de las normales que inciden sobre cada vertice para suavizar la superficie
       let averagedTriangles = new Array(triangles.length)
+      const trianglesPerRow = (this.steps - 1) * 2;
+      const elementsPerTriangle = 6;
+      const elementsPerRow = trianglesPerRow * elementsPerTriangle;
       for (let i = 0; i < triangles.length; i += 2) {
         const vertex = triangles[i];
         let normal = [0, 0, 0];
         let normalsCount = 0;
-        for (let j = 0; j < triangles.length; j+= 2) {
+        const rowIndex = Math.floor(i / elementsPerRow);
+        const start = Math.max((rowIndex - 1) * elementsPerRow, 0);
+        const end = Math.min((rowIndex + 2) * elementsPerRow, triangles.length);
+        for (let j = start; j < end; j+= 2) {
           const difference = vectorSubtraction(vertex, triangles[j]);
           // Si dos vertices son muy parecidos, asumimos que son el mismo y promediamos las normales
           if (difference[0] * difference[0] + difference[1] * difference[1] + difference[2] * difference[2] < 0.001) {

@@ -75,6 +75,12 @@ $(document).ready(() => {
     renderer.render();
   });
 
+  $('#inputAverageNormals').click(() => {
+    renderer.averageNormals = $('#inputAverageNormals').prop('checked');
+    renderer.updateControlPonts(renderer.controlPoints);
+    renderer.render();
+  });
+
   window.readControlPoints = () => {
     let controlPoints = renderer.controlPoints;
     let inputs = $('#controlPointsPanel input');
