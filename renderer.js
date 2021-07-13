@@ -385,12 +385,13 @@ class Renderer {
         let normal = [0, 0, 0];
         let normalsCount = 0;
         let visitedVertices = {};
-        // Look for matching vertices 3 triangles around this vertex
-        for (let j = -3; j < 4; j++) {
-          for (let k = -3; k < 4; k++) {
-            for (let l = 0; l < 3; l++) {
-              const offset = j * elementsPerRow + k * 6 + l * 2;
-              const vertexIndex = i + offset;
+        // Look for matching vertices 1 square around this vertex
+        const squareIndex = Math.floor(i / 12) * (2 * elementsPerTriangle);
+        for (let j = -1; j < 2; j++) {
+          for (let k = -1; k < 2; k++) {
+            for (let l = 0; l < 6; l++) {
+              const offset = j * elementsPerRow + k * (2 * elementsPerTriangle) + l * 2;
+              const vertexIndex = squareIndex + offset;
               const vertexId = vertexIndex.toString();
               if (vertexIndex >= 0 && vertexIndex < triangles.length && !visitedVertices[vertexId]) {
                 visitedVertices[vertexId] = true;
