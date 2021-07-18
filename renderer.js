@@ -230,7 +230,7 @@ class Renderer {
     }
   }
 
-  NURBS_N(i, n, t) {
+  bspline_basis(i, n, t) {
     // Version n = 3 used for debugging
     //if (i <= t && t < i + 1) {
     //  let u = t - i;
@@ -258,7 +258,7 @@ class Renderer {
     if (n === 0) {
       return (i <= t && t < i + 1) ? 1 : 0;
     } else {
-      return this.NURBS_N(i, n - 1, t) * (t - i) / n + this.NURBS_N(i + 1, n - 1, t) * (i + n + 1 - t) / n;
+      return this.bspline_basis(i, n - 1, t) * (t - i) / n + this.bspline_basis(i + 1, n - 1, t) * (i + n + 1 - t) / n;
     }
   }
 
@@ -286,7 +286,7 @@ class Renderer {
         for (let k = 0; k < points.length; k++) {
           nurbsCoef[k] = new Array(points[0].length);
           for (let l = 0; l < points[0].length; l++) {
-            const nu = this.NURBS_N(k, this.bSplineN - 1, u), nv = this.NURBS_N(l, this.bSplineM - 1, v);
+            const nu = this.bspline_basis(k, this.bSplineN - 1, u), nv = this.bspline_basis(l, this.bSplineM - 1, v);
             nurbsCoef[k][l] = nu * nv;
             sum += nu * nv;
             normFactor += nurbsCoef[k][l] * points[k][l].weight;
