@@ -144,30 +144,11 @@ $(document).ready(() => {
   function renderControlPointsPanel() {
     let controlPoint = renderer.controlPoints[selectedControlPoint.x][selectedControlPoint.y];
     let newContent = "";
-<<<<<<< HEAD
-    /*
-    controlPoints.forEach((cpRow, i) => {
-      cpRow.forEach((cp, j) => {
-        if (useSliders) {
-          newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
-            <input id="cp-${i}-${j}-1" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
-            <input id="cp-${i}-${j}-2" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
-            Weight:<input id="cp-${i}-${j}-3" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
-        } else {
-          newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="number"step="0.1" value="${cp.pos[0]}"></input>,
-            <input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[1]}"></input>,
-            <input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[2]}"></input>),
-            Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="number" step="0.1" value="${cp.weight}"></input> <br />`;
-        }
-      });
-    });*/
-=======
->>>>>>> delete commented code
     if (useSliders) {
-      newContent += `Position: (<input id="cp-0" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[0]}"></input>,
-        <input id="cp-1" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[1]}"></input>,
-        <input id="cp-2" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${controlPoint.pos[2]}"></input>),
-        Weight:<input id="cp-3" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${controlPoint.weight}"></input> <br />`;
+      newContent += `Position: (<input id="cp-0" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[0]}"></input>,
+        <input id="cp-1" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[1]}"></input>,
+        <input id="cp-2" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${controlPoint.pos[2]}"></input>),
+        Weight:<input id="cp-3" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${controlPoint.weight}"></input> <br />`;
     } else {
       newContent += `Position: (<input id="cp-0" onchange="readControlPoints()" type="number"step="0.1" value="${controlPoint.pos[0]}"></input>,
         <input id="cp-1" onchange="readControlPoints()" type="number" step="0.1" value="${controlPoint.pos[1]}"></input>,
