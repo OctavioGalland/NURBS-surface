@@ -102,10 +102,10 @@ $(document).ready(() => {
     controlPoints.forEach((cpRow, i) => {
       cpRow.forEach((cp, j) => {
         if (useSliders) {
-          newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
-            <input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
-            <input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
-            Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
+          newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
+            <input id="cp-${i}-${j}-1" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
+            <input id="cp-${i}-${j}-2" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
+            Weight:<input id="cp-${i}-${j}-3" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
         } else {
           newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="number"step="0.1" value="${cp.pos[0]}"></input>,
             <input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[1]}"></input>,
@@ -125,9 +125,9 @@ $(document).ready(() => {
     let content = '';
     if (useSliders) {
       content = `(
-        <input onchange="updateLightPos()" id="light-x" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[0]}">,
-        <input onchange="updateLightPos()" id="light-y" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[1]}">,
-        <input onchange="updateLightPos()" id="light-z" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[2]}">)`;
+        <input oninput="updateLightPos()" id="light-x" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[0]}">,
+        <input oninput="updateLightPos()" id="light-y" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[1]}">,
+        <input oninput="updateLightPos()" id="light-z" type="range" min="-5" max="5" step="0.1" value="${renderer.lightPos[2]}">)`;
     } else {
       content = `(
         <input onchange="updateLightPos()" id="light-x" type="number" step="0.1" value="${renderer.lightPos[0]}">,
