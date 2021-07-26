@@ -144,6 +144,7 @@ $(document).ready(() => {
   function renderControlPointsPanel() {
     let controlPoint = renderer.controlPoints[selectedControlPoint.x][selectedControlPoint.y];
     let newContent = "";
+<<<<<<< HEAD
     /*
     controlPoints.forEach((cpRow, i) => {
       cpRow.forEach((cp, j) => {
@@ -160,6 +161,8 @@ $(document).ready(() => {
         }
       });
     });*/
+=======
+>>>>>>> delete commented code
     if (useSliders) {
       newContent += `Position: (<input id="cp-0" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[0]}"></input>,
         <input id="cp-1" onchange="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[1]}"></input>,
