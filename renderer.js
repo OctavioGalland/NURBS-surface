@@ -13,6 +13,11 @@ class Renderer {
   wireframeMode = false;
   averageNormals = false;
 
+  selectedControlPoint = {
+    x: 0,
+    y: 0
+  };
+
   vertexShaderSrc = `
     uniform mat4 projection;
     uniform mat4 view;
@@ -176,7 +181,7 @@ class Renderer {
   }
 
   render () {
-    const redColor = [1, 0, 0], blueColor = [0, 0, 1], whiteColor = [1, 1, 1];
+    const redColor = [1, 0, 0], blueColor = [0, 0, 1], greenColor = [0, 1, 0], whiteColor = [1, 1, 1];
     gl.clearColor(0.9, 0.85, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -202,12 +207,24 @@ class Renderer {
       gl.uniform3fv(this.locations.uniform.color, redColor);
       for (let i = 0; i < this.controlPoints.length; i++) {
         for (let j = 0; j < this.controlPoints[i].length; j++) {
+          if (i == this.selectedControlPoint.x && j == this.selectedControlPoint.y) {
+            continue;
+          }
           let modelMat = createTranslationMatrix(this.controlPoints[i][j].pos[0], this.controlPoints[i][j].pos[1], this.controlPoints[i][j].pos[2]);
           modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
           gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
           gl.drawArrays(gl.TRIANGLES, 0, 36);
         }
       }
+
+      //selected control point
+      gl.uniform3fv(this.locations.uniform.color, greenColor);
+      let modelMat = createTranslationMatrix(this.controlPoints[this.selectedControlPoint.x][this.selectedControlPoint.y].pos[0],
+                                             this.controlPoints[this.selectedControlPoint.x][this.selectedControlPoint.y].pos[1],
+                                             this.controlPoints[this.selectedControlPoint.x][this.selectedControlPoint.y].pos[2]);
+      modelMat = multMatrix(modelMat, createScalingMatrix(.05,.05,.05));
+      gl.uniformMatrix4fv(this.locations.uniform.model, false, modelMat);
+      gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
 
     if (this.controlPoints.length > 0) {
@@ -266,6 +283,10 @@ class Renderer {
     this.lightPos = pos;
     gl.uniform3fv(this.locations.uniform.lightPos, this.lightPos);
     this.render();
+  }
+
+  updateSelectedControlPoint(selectedPoint) {
+    this.selectedControlPoint = selectedPoint;
   }
 
   updateControlPonts (points) {

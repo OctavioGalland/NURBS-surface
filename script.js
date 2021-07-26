@@ -11,6 +11,16 @@ $(document).ready(() => {
 
   let dragging = false;
 
+  let selectedControlPoint = {
+    x: 0,
+    y: 0
+  };
+
+  let availableControlPoints = {
+    x: 3,
+    y: 3
+  };
+
   // Canvas event listeners
   canvas.addEventListener('mousedown', e => {
     dragging = true;
@@ -81,39 +91,70 @@ $(document).ready(() => {
     renderer.render();
   });
 
+  $('#left-button').click(() => {
+    if (selectedControlPoint.x == 0) {
+      selectedControlPoint.x = availableControlPoints.x - 1;
+      if (selectedControlPoint.y == 0) {
+        selectedControlPoint.y = availableControlPoints.y - 1;
+      } else {
+        selectedControlPoint.y -= 1;
+      }
+    } else {
+      selectedControlPoint.x -= 1;
+    }
+    $('#selectedPoint').text('(' + selectedControlPoint.x + ', ' + selectedControlPoint.y + ')');
+    renderControlPointsPanel()
+    renderer.updateSelectedControlPoint(selectedControlPoint);
+    renderer.render();
+  });
+
+  $('#right-button').click(() => {
+    if (selectedControlPoint.x == availableControlPoints.x - 1) {
+      selectedControlPoint.x = 0;
+      if (selectedControlPoint.y == availableControlPoints.y - 1) {
+        selectedControlPoint.y = 0;
+      } else {
+        selectedControlPoint.y += 1;
+      }
+    } else {
+      selectedControlPoint.x += 1;
+    }
+    $('#selectedPoint').text('(' + selectedControlPoint.x + ', ' + selectedControlPoint.y + ')');
+    renderControlPointsPanel()
+    renderer.updateSelectedControlPoint(selectedControlPoint);
+    renderer.render();
+  });
+
   window.readControlPoints = () => {
     let controlPoints = renderer.controlPoints;
     let inputs = $('#controlPointsPanel input');
     inputs.each((i, input) => {
       let values = input.id.split('-').splice(1).map(i => parseInt(i));
-      if (values[2] < 3) {
-        controlPoints[values[0]][values[1]].pos[values[2]] = parseFloat(input.value);
+      if (values[0] < 3) {
+        controlPoints[selectedControlPoint.x][selectedControlPoint.y].pos[values[0]] = parseFloat(input.value);
       }
       else {
-        controlPoints[values[0]][values[1]].weight = parseFloat(input.value);
+        controlPoints[selectedControlPoint.x][selectedControlPoint.y].weight = parseFloat(input.value);
       }
     });
     renderer.updateControlPonts(controlPoints);
     renderer.render();
   }
 
-  function renderControlPointsPanel(controlPoints) {
+  function renderControlPointsPanel() {
+    let controlPoint = renderer.controlPoints[selectedControlPoint.x][selectedControlPoint.y];
     let newContent = "";
-    controlPoints.forEach((cpRow, i) => {
-      cpRow.forEach((cp, j) => {
-        if (useSliders) {
-          newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[0]}"></input>,
-            <input id="cp-${i}-${j}-1" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${cp.pos[1]}"></input>,
-            <input id="cp-${i}-${j}-2" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.pos[2]}"></input>),
-            Weight:<input id="cp-${i}-${j}-3" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${cp.weight}"></input> <br />`;
-        } else {
-          newContent += `(${i}, ${j}) - Position: (<input id="cp-${i}-${j}-0" onchange="readControlPoints()" type="number"step="0.1" value="${cp.pos[0]}"></input>,
-            <input id="cp-${i}-${j}-1" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[1]}"></input>,
-            <input id="cp-${i}-${j}-2" onchange="readControlPoints()" type="number" step="0.1" value="${cp.pos[2]}"></input>),
-            Weight:<input id="cp-${i}-${j}-3" onchange="readControlPoints()" type="number" step="0.1" value="${cp.weight}"></input> <br />`;
-        }
-      });
-    });
+    if (useSliders) {
+      newContent += `Position: (<input id="cp-0" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[0]}"></input>,
+        <input id="cp-1" oninput="readControlPoints()" type="range" min="-5" max="5" step="0.1" value="${controlPoint.pos[1]}"></input>,
+        <input id="cp-2" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${controlPoint.pos[2]}"></input>),
+        Weight:<input id="cp-3" oninput="readControlPoints()" type="range"  min="-5" max="5" step="0.1" value="${controlPoint.weight}"></input> <br />`;
+    } else {
+      newContent += `Position: (<input id="cp-0" onchange="readControlPoints()" type="number"step="0.1" value="${controlPoint.pos[0]}"></input>,
+        <input id="cp-1" onchange="readControlPoints()" type="number" step="0.1" value="${controlPoint.pos[1]}"></input>,
+        <input id="cp-2" onchange="readControlPoints()" type="number" step="0.1" value="${controlPoint.pos[2]}"></input>),
+        Weight:<input id="cp-3" onchange="readControlPoints()" type="number" step="0.1" value="${controlPoint.weight}"></input> <br />`;
+    }
     $('#controlPointsPanel').html(newContent);
   }
 
@@ -140,7 +181,11 @@ $(document).ready(() => {
   function generateControlPoints () {
     let controlPoints = [];
     let n = $('#inputCPx')['0'].value;
-    let m = $('#inputCPy')['0'].value
+    let m = $('#inputCPy')['0'].value;
+    availableControlPoints.x = n;
+    availableControlPoints.y = m;
+    selectedControlPoint.x = 0;
+    selectedControlPoint.y = 0;
     for (let i = 0; i < n; i++) {
       let row = [];
       for (let j = 0; j < m; j++) {
@@ -150,7 +195,7 @@ $(document).ready(() => {
     }
     renderer.updateControlPonts(controlPoints);
     renderer.render();
-    renderControlPointsPanel(controlPoints);
+    renderControlPointsPanel();
   }
 
   $('#inputCPx').change(generateControlPoints);
