@@ -91,11 +91,13 @@ class Renderer {
 
     this.locations.uniform.view = gl.getUniformLocation(this.program, 'view');
     this.viewMatrix = createTranslationMatrix(0, 0, -3);
+    this.viewMatrixInv = createTranslationMatrix(0, 0, 3);
     gl.uniformMatrix4fv(this.locations.uniform.view, false, this.viewMatrix);
 
     this.locations.uniform.projection = gl.getUniformLocation(this.program, 'projection');
-    const projectionMatrix = createPerspectiveMatrix(90, 4/3, 0.001, 10000);
-    gl.uniformMatrix4fv(this.locations.uniform.projection, false, projectionMatrix);
+    this.projectionMatrix = createPerspectiveMatrix(90, 4/3, 0.001, 10000);
+    this.projectionMatrixInv = invertMatrix(this.projectionMatrix);
+    gl.uniformMatrix4fv(this.locations.uniform.projection, false, this.projectionMatrix);
 
     this.locations.uniform.color = gl.getUniformLocation(this.program, 'color');
     gl.uniform3fv(this.locations.uniform.color, [0, 0, 1]);
@@ -158,10 +160,10 @@ class Renderer {
     this.viewMatrixInv = multMatrix(this.viewMatrixInv, createRotationMatrix(-this.angleY, 1, 0, 0));
     this.viewMatrixInv = multMatrix(this.viewMatrixInv, createTranslationMatrix(0, 0, 3));
 
-    this.viewPos = multMatrixVec(this.viewMatrixInv, [0, 0, 0, 1]);
+    this.viewPos = multMatrixVec(this.viewMatrixInv, [0, 0, 0, 1]).splice(0, 3);
     gl.useProgram(this.program);
     gl.uniformMatrix4fv(this.locations.uniform.view, false, this.viewMatrix);
-    gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos.splice(0, 3));
+    gl.uniform3fv(this.locations.uniform.viewPos, this.viewPos);
   }
 
   rotate (dx, dy) {

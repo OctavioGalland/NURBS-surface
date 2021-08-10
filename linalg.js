@@ -43,6 +43,40 @@ function multMatrix(mat1, mat2) {
   return res;
 }
 
+function invertMatrix(mat) {
+  let aux = new Array(16);
+  for (let i = 0; i < 16; i++)
+    aux[i] = mat[i];
+  let res = createIdentityMatrix();
+
+  for (let j = 0; j < 4; j++) {
+    const diag = aux[j * 4 + j];
+    for (let k = 0; k < 4; k++) {
+      aux[k * 4 + j] /= diag;
+      res[k * 4 + j] /= diag;
+    }
+    for (let i = j + 1; i < 4; i++) {
+      const leadingCoef = aux[j * 4 + i];
+      for (let k = 0; k < 4; k++) {
+        aux[k * 4 + i] -= aux[k * 4 + j] * leadingCoef;
+        res[k * 4 + i] -= res[k * 4 + j] * leadingCoef;
+      }
+    }
+  }
+
+  for (let j = 3; j > 0; j--) {
+    for (let i = j - 1; i >= 0; i--) {
+      const leadingCoef = aux[j * 4 + i];
+      for (let k = 0; k < 4; k++) {
+        aux[k * 4 + i] -= aux[k * 4 + j] * leadingCoef;
+        res[k * 4 + i] -= res[k * 4 + j] * leadingCoef;
+      }
+    }
+  }
+
+  return res;
+}
+
 function multMatrixVec(M, v) {
   let res = [0, 0, 0, 0];
   for (let i = 0; i < 4; i++) {
@@ -55,6 +89,10 @@ function multMatrixVec(M, v) {
 
 function vectorCrossProduct(v1, v2) {
   return [v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]];
+}
+
+function vectorDotProduct(v1, v2) {
+  return (v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
 }
 
 function vectorSubtraction(v1, v2) {

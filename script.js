@@ -22,11 +22,53 @@ $(document).ready(() => {
   };
 
   // Canvas event listeners
+  let dragStartTime = 0;
   canvas.addEventListener('mousedown', e => {
     dragging = true;
+    dragStartTime = new Date().getTime();
   });
   canvas.addEventListener('mouseup', e => {
     dragging = false;
+    // TODO: this logic should be placed somewhere else
+    const dragEndTime = new Date().getTime();
+    if (dragEndTime - dragStartTime < 250) {
+      // Unproject mouse coordinates into world space and cast a ray in that direction
+      const mouseX = e.x - e.target.offsetLeft;
+      const mouseY = e.y - e.target.offsetTop;
+      const coordX = (mouseX - (800 / 2)) / (800 / 2);
+      const coordY = -(mouseY - (600 / 2)) / (600 / 2);
+      const viewCoords = multMatrixVec(renderer.projectionMatrixInv, [coordX, coordY, -1, 1]);
+      const worldCoords = multMatrixVec(renderer.viewMatrixInv, [viewCoords[0], viewCoords[1], -1, 0]);
+      const rayDir = normalize([worldCoords[0], worldCoords[1], worldCoords[2]]);
+      // Check for intersections between the casted ray and each control point
+      let nearestIntersection = {dist: -1, i: -1, j: -1};
+      for (let i = 0; i < renderer.controlPoints.length; i++) {
+        for (let j = 0; j < renderer.controlPoints[i].length; j++) {
+          // https://antongerdelan.net/opengl/raycasting.html
+          // Treat each control point as a sphere and check if it intersects the ray casted from the camera position
+          const cpPos = renderer.controlPoints[i][j].pos;
+          const co = vectorSubtraction(renderer.viewPos, cpPos);
+          const b = vectorDotProduct(rayDir, co);
+          const c = vectorDotProduct(co, co) - 0.0036; // give each sphere a radius of 0.06
+          if (b * b - c >= 0) {
+            // Intersection! check for a closer one or update the selected control point
+            const distanceFromCamera = length(co);
+            if (nearestIntersection.dist < 0 || distanceFromCamera < nearestIntersection.dist) {
+              nearestIntersection.dist = distanceFromCamera;
+              nearestIntersection.i = i;
+              nearestIntersection.j = j;
+            }
+          }
+        }
+      }
+      if (nearestIntersection.dist > 0) {
+        selectedControlPoint.x = nearestIntersection.i;
+        selectedControlPoint.y = nearestIntersection.j;
+        renderControlPointsPanel();
+        renderer.updateSelectedControlPoint(selectedControlPoint);
+        renderer.render();
+      }
+    }
   });
 
   canvas.addEventListener('mousemove', e => {
@@ -102,7 +144,6 @@ $(document).ready(() => {
     } else {
       selectedControlPoint.x -= 1;
     }
-    $('#selectedPoint').text('(' + selectedControlPoint.x + ', ' + selectedControlPoint.y + ')');
     renderControlPointsPanel()
     renderer.updateSelectedControlPoint(selectedControlPoint);
     renderer.render();
@@ -119,7 +160,6 @@ $(document).ready(() => {
     } else {
       selectedControlPoint.x += 1;
     }
-    $('#selectedPoint').text('(' + selectedControlPoint.x + ', ' + selectedControlPoint.y + ')');
     renderControlPointsPanel()
     renderer.updateSelectedControlPoint(selectedControlPoint);
     renderer.render();
@@ -156,6 +196,7 @@ $(document).ready(() => {
         Weight:<input id="cp-3" onchange="readControlPoints()" type="number" step="0.1" value="${controlPoint.weight}"></input> <br />`;
     }
     $('#controlPointsPanel').html(newContent);
+    $('#selectedPoint').text('(' + selectedControlPoint.x + ', ' + selectedControlPoint.y + ')');
   }
 
   window.updateLightPos = function() {
